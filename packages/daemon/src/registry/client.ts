@@ -4,7 +4,7 @@
 import type { IdentityKeys } from "../crypto/keys.js";
 import { sign, getPublicKeyString } from "../crypto/keys.js";
 
-const DEFAULT_REGISTRY_URL = "https://clawnexus-registry.silverstream.tech";
+const DEFAULT_REGISTRY_URL = "https://clawnexus-registry.silvonastream.com";
 const DEFAULT_TIMEOUT = 10_000;
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
