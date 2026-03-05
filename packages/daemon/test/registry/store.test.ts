@@ -255,6 +255,12 @@ describe("RegistryStore", () => {
       expect(store.resolve("10.0.0.5")?.auto_name).toBe("server");
     });
 
+    it("resolves by address:port", () => {
+      const inst = makeInstance({ address: "10.0.0.5", gateway_port: 18789, auto_name: "server" });
+      store.upsert(inst);
+      expect(store.resolve("10.0.0.5:18789")?.auto_name).toBe("server");
+    });
+
     it("alias takes priority over auto_name", () => {
       const inst1 = makeInstance({ address: "10.0.0.1", auto_name: "target", alias: "other" });
       const inst2 = makeInstance({ address: "10.0.0.2", auto_name: "something", alias: "target" });
