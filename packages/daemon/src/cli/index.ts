@@ -243,8 +243,10 @@ async function cmdStart(args: ParsedArgs): Promise<void> {
     detached: true,
     stdio: ["ignore", logFd, logFd, "ipc"],
     env: { ...process.env },
-  });
+    windowsHide: true,
+  } as Parameters<typeof fork>[2]);
 
+  child.disconnect();
   child.unref();
 
   if (child.pid) {
