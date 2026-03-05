@@ -132,9 +132,10 @@ export class RegistryStore extends EventEmitter {
       if (inst.agent_id.toLowerCase() === q) agentMatches.push(inst);
     }
     if (agentMatches.length === 1) return agentMatches[0];
-    // 5. address
+    // 5. address or address:port
     for (const inst of this.instances.values()) {
       if (inst.address === query) return inst;
+      if (`${inst.address}:${inst.gateway_port}` === query) return inst;
     }
     return undefined;
   }
@@ -150,7 +151,8 @@ export class RegistryStore extends EventEmitter {
         inst.auto_name.toLowerCase() === q ||
         inst.display_name.toLowerCase() === q ||
         inst.agent_id.toLowerCase() === q ||
-        inst.address === query
+        inst.address === query ||
+        `${inst.address}:${inst.gateway_port}` === query
       ) {
         results.push(inst);
       }
