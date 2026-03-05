@@ -68,9 +68,28 @@ The daemon listens on `http://localhost:17890` by default.
 | `PUT` | `/instances/:id/alias` | Set/update alias |
 | `DELETE` | `/instances/:id` | Remove instance |
 | `POST` | `/scan` | Trigger network scan |
+| `POST` | `/registry/register` | Register with public Registry (v0.2) |
+| `GET` | `/registry/status` | Registration status (v0.2) |
+| `GET` | `/resolve/:name` | Resolve a `.claw` name (v0.2) |
+| `GET` | `/whoami` | This instance's identity (v0.2) |
 | `POST` | `/relay/connect` | Connect via relay (v0.4) |
-| `GET` | `/relay/status` | Relay connection status |
-| `DELETE` | `/relay/disconnect/:room_id` | Disconnect relay room |
+| `GET` | `/relay/status` | Relay connection status (v0.4) |
+| `DELETE` | `/relay/disconnect/:room_id` | Disconnect relay room (v0.4) |
+| `GET` | `/agent/policy` | Get agent policy (v0.4) |
+| `PUT` | `/agent/policy` | Replace agent policy (v0.4) |
+| `PATCH` | `/agent/policy` | Partial policy update (v0.4) |
+| `POST` | `/agent/policy/reset` | Reset policy to defaults (v0.4) |
+| `GET` | `/agent/tasks` | List tasks (v0.4) |
+| `GET` | `/agent/tasks/stats` | Task statistics (v0.4) |
+| `GET` | `/agent/tasks/:id` | Get a single task (v0.4) |
+| `POST` | `/agent/tasks/:id/cancel` | Cancel a task (v0.4) |
+| `POST` | `/agent/propose` | Send task proposal to peer (v0.4) |
+| `POST` | `/agent/query` | Query peer capabilities (v0.4) |
+| `GET` | `/agent/inbox` | List queued inbound proposals (v0.4) |
+| `POST` | `/agent/inbox/:id/approve` | Approve queued proposal (v0.4) |
+| `POST` | `/agent/inbox/:id/deny` | Deny queued proposal (v0.4) |
+| `GET` | `/diagnostics` | Full diagnostics summary |
+| `GET` | `/diagnostics/unreachable` | mDNS-heard but unreachable instances |
 
 See [docs/api.md](../../docs/api.md) for full request/response examples.
 
@@ -81,6 +100,7 @@ See [docs/api.md](../../docs/api.md) for full request/response examples.
 | `CLAWNEXUS_PORT` | Daemon API port | `17890` |
 | `CLAWNEXUS_HOST` | Daemon bind address | `127.0.0.1` |
 | `CLAWNEXUS_API` | CLI target API URL | `http://localhost:17890` |
+| `CLAWNEXUS_RELAY_URL` | Override relay WebSocket URL | _(from Registry token)_ |
 
 Data is stored in `~/.clawnexus/`:
 
@@ -88,7 +108,8 @@ Data is stored in `~/.clawnexus/`:
 ~/.clawnexus/
 ├── registry.json    # Instance registry
 ├── daemon.pid       # PID file
-└── policy.json      # Agent policy (v1.0)
+├── identity.json    # Ed25519 identity keys (v0.2)
+└── policy.json      # Agent policy configuration (v0.4)
 ```
 
 ## Programmatic Usage
