@@ -44,6 +44,7 @@ const { ActiveScanner } = await import("../../src/scanner/active.js");
 async function setupApp(): Promise<{
   app: FastifyInstance;
   store: RegistryStore;
+  scanner: InstanceType<typeof ActiveScanner>;
   tmpDir: string;
   teardown: () => Promise<void>;
 }> {
@@ -58,6 +59,7 @@ async function setupApp(): Promise<{
   return {
     app,
     store,
+    scanner,
     tmpDir,
     teardown: async () => {
       await app.close();
@@ -472,5 +474,145 @@ describe("resolve() priority: alias > auto_name > display_name > agent_id > addr
     // Actually: priority is alias > auto_name > display_name > agent_id > address
     // "10.0.0.2" matches agent_id of s1 AND address of s2; agent_id wins (step 4 before step 5)
     expect(res.json().address).toBe("10.0.0.1");
+  });
+});
+
+// ─────────────────────────────────────────────
+// 6. GET /instances — local instance (clawnexus start → clawnexus list)
+// ─────────────────────────────────────────────
+
+describe("GET /instances — local instance (source=local, is_self=true)", () => {
+  let app: FastifyInstance;
+  let store: RegistryStore;
+  let teardown: () => Promise<void>;
+
+  beforeEach(async () => {
+    ({ app, store, teardown } = await setupApp());
+
+    // Simulate what LocalProbe writes when daemon starts and detects local OpenClaw
+    store.upsert(
+      makeInstance({
+        address: "127.0.0.1",
+        auto_name: "olivia",
+        discovery_source: "local",
+        is_self: true,
+        status: "online",
+      }),
+    );
+  });
+
+  afterEach(() => teardown());
+
+  it("local instance appears in list without scan", async () => {
+    const res = await app.inject({ method: "GET", url: "/instances" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.count).toBeGreaterThanOrEqual(1);
+    const local = body.instances.find(
+      (i: { discovery_source: string }) => i.discovery_source === "local",
+    );
+    expect(local).toBeDefined();
+  });
+
+  it("local instance has is_self=true and discovery_source=local", async () => {
+    const res = await app.inject({ method: "GET", url: "/instances" });
+    const local = res.json().instances.find((i: { is_self: boolean }) => i.is_self === true);
+    expect(local).toBeDefined();
+    expect(local.discovery_source).toBe("local");
+    expect(local.is_self).toBe(true);
+  });
+
+  it("response includes discovery_source and is_self fields for every instance", async () => {
+    const res = await app.inject({ method: "GET", url: "/instances" });
+    const inst = res.json().instances[0];
+    expect(inst).toHaveProperty("discovery_source");
+    expect(inst).toHaveProperty("is_self");
+  });
+
+  it("local instance is resolved by auto_name (clawnexus info olivia)", async () => {
+    const res = await app.inject({ method: "GET", url: "/instances/olivia" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().is_self).toBe(true);
+    expect(res.json().discovery_source).toBe("local");
+  });
+});
+
+// ─────────────────────────────────────────────
+// 7. POST /scan — clawnexus scan
+// ─────────────────────────────────────────────
+
+describe("POST /scan — clawnexus scan", () => {
+  let app: FastifyInstance;
+  let store: RegistryStore;
+  let scanner: InstanceType<typeof ActiveScanner>;
+  let teardown: () => Promise<void>;
+
+  beforeEach(async () => {
+    ({ app, store, scanner, teardown } = await setupApp());
+  });
+
+  afterEach(() => teardown());
+
+  it("returns 200 with status=ok, discovered count, and instances array", async () => {
+    const found = makeInstance({ address: "192.168.1.10", auto_name: "remote-1" });
+    vi.spyOn(scanner, "scan").mockResolvedValueOnce([found]);
+
+    const res = await app.inject({ method: "POST", url: "/scan" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.status).toBe("ok");
+    expect(body.discovered).toBe(1);
+    expect(body.instances).toHaveLength(1);
+    expect(body.instances[0].address).toBe("192.168.1.10");
+  });
+
+  it("returns discovered=0 and empty instances when no hosts found", async () => {
+    vi.spyOn(scanner, "scan").mockResolvedValueOnce([]);
+
+    const res = await app.inject({ method: "POST", url: "/scan" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.status).toBe("ok");
+    expect(body.discovered).toBe(0);
+    expect(body.instances).toEqual([]);
+  });
+
+  it("scan results appear in subsequent GET /instances", async () => {
+    const found = makeInstance({ address: "192.168.1.20", auto_name: "newly-found" });
+    vi.spyOn(scanner, "scan").mockImplementationOnce(async () => {
+      store.upsert(found);
+      return [found];
+    });
+
+    await app.inject({ method: "POST", url: "/scan" });
+
+    const listRes = await app.inject({ method: "GET", url: "/instances" });
+    const addresses = listRes.json().instances.map((i: { address: string }) => i.address);
+    expect(addresses).toContain("192.168.1.20");
+  });
+
+  it("accepts targets body parameter and passes it to scanner", async () => {
+    const scanSpy = vi.spyOn(scanner, "scan").mockResolvedValueOnce([]);
+    await app.inject({
+      method: "POST",
+      url: "/scan",
+      payload: { targets: ["192.168.1.50:18789"] },
+    });
+    expect(scanSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ targets: ["192.168.1.50:18789"] }),
+    );
+  });
+
+  it("multiple discovered instances all appear in response", async () => {
+    const found = [
+      makeInstance({ address: "192.168.1.10", auto_name: "host-a" }),
+      makeInstance({ address: "192.168.1.11", auto_name: "host-b" }),
+      makeInstance({ address: "192.168.1.12", auto_name: "host-c" }),
+    ];
+    vi.spyOn(scanner, "scan").mockResolvedValueOnce(found);
+
+    const res = await app.inject({ method: "POST", url: "/scan" });
+    expect(res.json().discovered).toBe(3);
+    expect(res.json().instances).toHaveLength(3);
   });
 });
