@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+
+# scratch / local-only
+1.md
+1.txt
+*.png
+
+# Claude Code project instructions (local only)
+CLAUDE.md

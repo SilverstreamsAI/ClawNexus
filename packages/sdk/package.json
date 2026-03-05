@@ -1,0 +1,40 @@
+{
+  "name": "@clawnexus/clawlink-sdk",
+  "version": "0.1.0",
+  "description": "ClawLink Protocol SDK — discover and identify OpenClaw-compatible AI instances",
+  "license": "MIT",
+  "author": "alan-silverstreams <alan@silverstream.tech>",
+  "homepage": "https://github.com/alan-silverstreams/ClawNexus",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alan-silverstreams/ClawNexus.git",
+    "directory": "packages/sdk"
+  },
+  "bugs": "https://github.com/alan-silverstreams/ClawNexus/issues",
+  "keywords": [
+    "openclaw",
+    "ai",
+    "agent",
+    "sdk",
+    "clawlink",
+    "protocol",
+    "discovery",
+    "clawnexus"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  }
+}
