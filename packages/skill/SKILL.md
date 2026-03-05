@@ -20,6 +20,9 @@ clawnexus start
 | `alias` | Set instance alias | `id`, `alias` |
 | `connect` | Get WebSocket URL | `name` |
 | `health` | Check daemon status | — |
+| `resolve` | Resolve a `.claw` name to an instance | `name` |
+
+> **Note:** `id` and `name` parameters accept any identifier in the resolve chain: alias, auto\_name, display\_name, agent\_id, IP address, or `address:port`.
 
 ## Example Usage
 
@@ -27,6 +30,7 @@ clawnexus start
 { "action": "list" }
 { "action": "info", "params": { "name": "home" } }
 { "action": "scan" }
-{ "action": "alias", "params": { "id": "my-agent", "alias": "home" } }
+{ "action": "alias", "params": { "id": "olivia", "alias": "home" } }
 { "action": "connect", "params": { "name": "home" } }
+{ "action": "resolve", "params": { "name": "myagent.id.claw" } }
 ```

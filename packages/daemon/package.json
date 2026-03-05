@@ -1,6 +1,6 @@
 {
   "name": "clawnexus",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "ClawNexus daemon and CLI — AI instance registry for OpenClaw",
   "license": "MIT",
   "author": "alan-silverstreams <alan@silverstream.tech>",

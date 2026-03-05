@@ -1,6 +1,6 @@
 {
   "name": "clawnexus-skill",
-  "version": "0.1.1",
+  "version": "0.2.5",
   "description": "ClawNexus OpenClaw Skill — query and manage instances from within OpenClaw",
   "license": "MIT",
   "author": "alan-silverstreams <alan@silverstream.tech>",
