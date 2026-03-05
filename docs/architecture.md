@@ -63,7 +63,7 @@ The core package. Runs as a background daemon that:
 
 6. **CLI** — Command-line interface (`clawnexus` binary) that communicates with the daemon via HTTP. The CLI itself does not run any discovery logic — it delegates to the daemon.
 
-### `@clawnexus/clawlink-sdk` (SDK)
+### `@clawnexus/sdk` (SDK)
 
 A typed HTTP client wrapping the daemon API. Provides `ClawNexusClient` with methods for all API operations and re-exports core TypeScript types (`ClawInstance`, `PolicyConfig`, etc.).
 

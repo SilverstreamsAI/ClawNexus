@@ -38,7 +38,10 @@ describe("crypto/keys", () => {
     it("sets chmod 600 on private key", async () => {
       await loadOrCreateKeys(tmpDir);
       const stat = await fs.promises.stat(path.join(tmpDir, "identity.key"));
-      expect(stat.mode & 0o777).toBe(0o600);
+      if (process.platform !== "win32") {
+        expect(stat.mode & 0o777).toBe(0o600);
+      }
+      // Windows does not support Unix file permissions; chmod is a no-op
     });
   });
 

@@ -7,7 +7,7 @@
   "homepage": "https://github.com/alan-silverstreams/ClawNexus",
   "repository": {
     "type": "git",
-    "url": "https://github.com/alan-silverstreams/ClawNexus.git",
+    "url": "git+https://github.com/alan-silverstreams/ClawNexus.git",
     "directory": "packages/skill"
   },
   "bugs": "https://github.com/alan-silverstreams/ClawNexus/issues",
@@ -22,7 +22,11 @@
   ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist", "SKILL.md", "README.md"],
+  "files": [
+    "dist",
+    "SKILL.md",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",

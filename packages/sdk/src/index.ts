@@ -1,4 +1,4 @@
-// @clawnexus/clawlink-sdk — ClawLink Protocol SDK
+// @clawnexus/sdk — ClawNexus SDK
 // Discover and identify OpenClaw-compatible AI instances
 // See: DESIGN_010_ecosystem_compatibility.md
 

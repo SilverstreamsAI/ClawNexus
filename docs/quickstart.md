@@ -2,13 +2,16 @@
 
 Get ClawNexus up and running in 5 minutes.
 
+## Prerequisites
+
+- Node.js 22 or later
+- OpenClaw running on at least one machine (no special configuration needed — default settings work out of the box)
+
 ## 1. Install
 
 ```bash
 npm install -g clawnexus
 ```
-
-Requires Node.js 22 or later.
 
 ## 2. Start the Daemon
 
@@ -16,53 +19,62 @@ Requires Node.js 22 or later.
 clawnexus start
 ```
 
-The daemon runs in the background and listens on `http://localhost:17890`.
-
-Check that it's running:
+Verify it's running:
 
 ```bash
 clawnexus status
 ```
 
+```
+Daemon running. PID: 12345. API: http://localhost:17890
+```
+
+If OpenClaw is running on the same machine, ClawNexus detects it automatically — no scan needed.
+
 ## 3. Discover Instances
 
-ClawNexus discovers OpenClaw instances via mDNS (automatic) and active network scanning.
-
-Trigger a manual scan:
+ClawNexus discovers OpenClaw instances via mDNS automatically. To also scan the local network:
 
 ```bash
 clawnexus scan
 ```
 
-```
-Scanning local network...
-Found 2 instance(s).
-NAME              ADDRESS            STATUS   SOURCE  LAST SEEN
-alan-macbook      192.168.1.10:18789 online   mdns    3/3/2026, 10:30:00 AM
-raspi-openclaw    192.168.1.20:18789 online   scan    3/3/2026, 10:30:01 AM
+Then list all known instances:
+
+```bash
+clawnexus list
 ```
 
-## 4. Assign Aliases
+```
+NAME              ADDRESS              STATUS   SOURCE  LAST SEEN
+olivia            192.168.1.10:18789   online   local   3/3/2026, 10:30:00 AM
+alan-macbook      192.168.1.20:18789   online   mdns    3/3/2026, 10:30:01 AM
+raspi-openclaw    192.168.1.30:18789   online   scan    3/3/2026, 10:30:02 AM
+```
 
-Give instances short, memorable names:
+The `NAME` column shows the `auto_name` assigned by ClawNexus based on each machine's hostname. You can use these names directly without setting an alias.
+
+## 4. Assign Aliases (Optional)
+
+Give an instance a shorter, custom name:
 
 ```bash
 clawnexus alias alan-macbook home
 clawnexus alias raspi-openclaw raspi
 ```
 
-Now you can refer to them by alias:
+Now you can use the alias anywhere:
 
 ```bash
 clawnexus info home
 ```
 
 ```
-Agent ID:      alan-macbook
+Auto Name:     alan-macbook
 Display Name:  Alan's MacBook
 Assistant:     OpenClaw Assistant
 Alias:         home
-Address:       192.168.1.10:18789
+Address:       192.168.1.20:18789
 Status:        online
 Source:        mdns
 ```
@@ -73,7 +85,7 @@ Get the WebSocket URL for an instance:
 
 ```bash
 clawnexus connect home
-# ws://192.168.1.10:18789
+# ws://192.168.1.20:18789
 ```
 
 Or open the WebChat UI directly in your browser:
@@ -87,17 +99,17 @@ clawnexus open home
 For programmatic access, install the SDK:
 
 ```bash
-npm install @clawnexus/clawlink-sdk
+npm install @clawnexus/sdk
 ```
 
 ```typescript
-import { ClawNexusClient } from "@clawnexus/clawlink-sdk";
+import { ClawNexusClient } from "@clawnexus/sdk";
 
 const client = new ClawNexusClient();
 const { instances } = await client.listInstances();
 
 for (const inst of instances) {
-  console.log(`${inst.alias ?? inst.agent_id} — ${inst.status}`);
+  console.log(`${inst.alias ?? inst.auto_name} — ${inst.status}`);
 }
 ```
 

@@ -1,4 +1,4 @@
-# @clawnexus/clawlink-sdk
+# @clawnexus/sdk
 
 ClawLink Protocol SDK — programmatic client for the ClawNexus daemon API.
 
@@ -7,7 +7,7 @@ Discover and manage OpenClaw-compatible AI instances from your Node.js applicati
 ## Installation
 
 ```bash
-npm install @clawnexus/clawlink-sdk
+npm install @clawnexus/sdk
 ```
 
 Requires Node.js >= 22 and a running `clawnexus` daemon.
@@ -15,7 +15,7 @@ Requires Node.js >= 22 and a running `clawnexus` daemon.
 ## Quick Start
 
 ```typescript
-import { ClawNexusClient } from "@clawnexus/clawlink-sdk";
+import { ClawNexusClient } from "@clawnexus/sdk";
 
 const client = new ClawNexusClient();
 
@@ -63,7 +63,7 @@ const client = new ClawNexusClient({
 ### Error Handling
 
 ```typescript
-import { ClawNexusClient, ClawNexusApiError } from "@clawnexus/clawlink-sdk";
+import { ClawNexusClient, ClawNexusApiError } from "@clawnexus/sdk";
 
 const client = new ClawNexusClient();
 
@@ -88,7 +88,7 @@ import type {
   TaskRecord,
   TaskStats,
   InboxItem,
-} from "@clawnexus/clawlink-sdk";
+} from "@clawnexus/sdk";
 ```
 
 ## License

@@ -14,7 +14,7 @@ Returns daemon status and component health.
 {
   "status": "ok",
   "service": "clawnexus-daemon",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "timestamp": "2026-03-03T10:00:00.000Z",
   "components": {
     "registry": { "instances": 3 },
@@ -39,6 +39,7 @@ List all known instances.
   "instances": [
     {
       "agent_id": "alan-macbook",
+      "auto_name": "alan-macbook",
       "assistant_name": "OpenClaw Assistant",
       "display_name": "Alan's MacBook",
       "alias": "home",
