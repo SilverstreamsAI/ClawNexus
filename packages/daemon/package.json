@@ -1,0 +1,51 @@
+{
+  "name": "clawnexus",
+  "version": "0.2.0",
+  "description": "ClawNexus daemon and CLI — AI instance registry for OpenClaw",
+  "license": "MIT",
+  "author": "alan-silverstreams <alan@silverstream.tech>",
+  "homepage": "https://github.com/alan-silverstreams/ClawNexus",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alan-silverstreams/ClawNexus.git",
+    "directory": "packages/daemon"
+  },
+  "bugs": "https://github.com/alan-silverstreams/ClawNexus/issues",
+  "keywords": [
+    "openclaw",
+    "ai",
+    "agent",
+    "registry",
+    "mdns",
+    "discovery",
+    "daemon",
+    "cli",
+    "clawnexus"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "clawnexus": "dist/cli/index.js"
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "fastify": "^5.0.0",
+    "multicast-dns": "^7.2.5",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.14"
+  }
+}
