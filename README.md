@@ -47,7 +47,7 @@ ClawNexus fills the "naming layer" gap in the OpenClaw ecosystem: instance namin
 |---------|-----|-------------|
 | [`clawnexus`](./packages/daemon) | [![npm](https://img.shields.io/npm/v/clawnexus)](https://www.npmjs.com/package/clawnexus) | Daemon + CLI |
 | [`clawnexus-skill`](./packages/skill) | [![npm](https://img.shields.io/npm/v/clawnexus-skill)](https://www.npmjs.com/package/clawnexus-skill) | OpenClaw Skill |
-| [`@clawnexus/clawlink-sdk`](./packages/sdk) | [![npm](https://img.shields.io/npm/v/@clawnexus/clawlink-sdk)](https://www.npmjs.com/package/@clawnexus/clawlink-sdk) | ClawLink Protocol SDK |
+| [`@clawnexus/sdk`](./packages/sdk) | [![npm](https://img.shields.io/npm/v/@clawnexus/sdk)](https://www.npmjs.com/package/@clawnexus/sdk) | ClawNexus SDK |
 
 ## Quick Start
 
