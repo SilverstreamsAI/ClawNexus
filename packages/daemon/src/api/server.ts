@@ -270,8 +270,11 @@ export function registerInstanceRoutes(
   store: RegistryStore,
   scanner: ActiveScanner,
 ): void {
-  app.get("/instances", async () => {
-    const instances = store.getAll();
+  app.get<{ Querystring: { scope?: string } }>("/instances", async (request) => {
+    let instances = store.getAll();
+    if (request.query.scope) {
+      instances = instances.filter((i) => i.network_scope === request.query.scope);
+    }
     return { count: instances.length, instances };
   });
 
