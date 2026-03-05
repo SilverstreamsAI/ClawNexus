@@ -174,7 +174,26 @@ export class RegistryStore extends EventEmitter {
       // Preserve registry fields
       instance.claw_name = instance.claw_name ?? existing.claw_name;
       instance.owner_pubkey = instance.owner_pubkey ?? existing.owner_pubkey;
+
+      this.instances.set(key, instance);
+      this.scheduleDirtyFlush();
+      this.emit("upsert", instance);
     } else {
+      // Check for duplicate from different NIC (multi-NIC deduplication)
+      const duplicate = this._findDuplicate(instance);
+      if (duplicate) {
+        const merged = this._mergeInstances(duplicate, instance);
+        const oldKey = this.networkKey(duplicate.address, duplicate.gateway_port);
+        const newKey = this.networkKey(merged.address, merged.gateway_port);
+        if (oldKey !== newKey) {
+          this.instances.delete(oldKey);
+        }
+        this.instances.set(newKey, merged);
+        this.scheduleDirtyFlush();
+        this.emit("merge", { kept: merged, removed_key: oldKey !== newKey ? oldKey : null });
+        return;
+      }
+
       // First discovery: generate auto_name if not already set
       if (!instance.auto_name) {
         const baseName = generateAutoName(instance.lan_host, instance.display_name, instance.address);
@@ -184,11 +203,11 @@ export class RegistryStore extends EventEmitter {
         }
         instance.auto_name = ensureUnique(baseName, usedNames);
       }
-    }
 
-    this.instances.set(key, instance);
-    this.scheduleDirtyFlush();
-    this.emit("upsert", instance);
+      this.instances.set(key, instance);
+      this.scheduleDirtyFlush();
+      this.emit("upsert", instance);
+    }
   }
 
   remove(networkKey: string): boolean {
@@ -226,6 +245,86 @@ export class RegistryStore extends EventEmitter {
 
   get size(): number {
     return this.instances.size;
+  }
+
+  /**
+   * Find an existing instance that represents the same physical machine
+   * discovered via a different network interface. Matches on agent_id + lan_host.
+   */
+  private _findDuplicate(instance: ClawInstance): ClawInstance | undefined {
+    const incomingHost = this._normalizeHost(instance.lan_host);
+    const incomingAgent = instance.agent_id.toLowerCase();
+
+    for (const existing of this.instances.values()) {
+      if (
+        existing.agent_id.toLowerCase() === incomingAgent &&
+        this._normalizeHost(existing.lan_host) === incomingHost
+      ) {
+        return existing;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Merge two instances representing the same machine on different NICs.
+   * Keeps user-set fields (alias, labels, auto_name, claw_name, owner_pubkey)
+   * from the existing entry. Picks the best address by network scope priority.
+   */
+  private _mergeInstances(existing: ClawInstance, incoming: ClawInstance): ClawInstance {
+    const existingPriority = this._addressPriority(existing.network_scope);
+    const incomingPriority = this._addressPriority(incoming.network_scope);
+
+    // Pick address: higher priority wins; if equal, keep existing (first-seen)
+    const keepExistingAddress = existingPriority >= incomingPriority;
+
+    return {
+      // Network identity: use the better address
+      address: keepExistingAddress ? existing.address : incoming.address,
+      gateway_port: keepExistingAddress ? existing.gateway_port : incoming.gateway_port,
+      network_scope: keepExistingAddress ? existing.network_scope : incoming.network_scope,
+      tls: keepExistingAddress ? existing.tls : incoming.tls,
+      tls_fingerprint: keepExistingAddress ? existing.tls_fingerprint : incoming.tls_fingerprint,
+
+      // Identity fields from existing (stable)
+      agent_id: existing.agent_id,
+      auto_name: existing.auto_name,
+      alias: existing.alias,
+      lan_host: existing.lan_host,
+      assistant_name: incoming.assistant_name,
+      display_name: incoming.display_name,
+
+      // Timestamps: keep original discovered_at, use latest last_seen
+      discovered_at: existing.discovered_at,
+      last_seen: incoming.last_seen,
+
+      // Discovery source: use the incoming one (most recent discovery)
+      discovery_source: incoming.discovery_source,
+
+      // Status from incoming (freshest)
+      status: incoming.status,
+
+      // Preserve user-set and registry fields from existing
+      claw_name: existing.claw_name ?? incoming.claw_name,
+      owner_pubkey: existing.owner_pubkey ?? incoming.owner_pubkey,
+      labels: existing.labels ?? incoming.labels,
+      connectivity: incoming.connectivity ?? existing.connectivity,
+      is_self: existing.is_self || incoming.is_self,
+    };
+  }
+
+  /** Numeric priority for network scope: local > vpn > public */
+  private _addressPriority(scope: ClawInstance["network_scope"]): number {
+    switch (scope) {
+      case "local": return 2;
+      case "vpn": return 1;
+      case "public": return 0;
+    }
+  }
+
+  /** Normalize hostname for comparison: lowercase, strip trailing .local */
+  private _normalizeHost(host: string): string {
+    return host.toLowerCase().replace(/\.local$/, "");
   }
 
   private scheduleDirtyFlush(): void {

@@ -88,7 +88,7 @@ See [docs/quickstart.md](./docs/quickstart.md) for a complete walkthrough.
 
 ```bash
 # Clone and install
-git clone https://github.com/alan-silverstreams/ClawNexus.git
+git clone https://github.com/SilverstreamsAI/ClawNexus.git
 cd ClawNexus
 pnpm install
 

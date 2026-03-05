@@ -404,4 +404,255 @@ describe("RegistryStore", () => {
       expect(store.getAll()).toHaveLength(2);
     });
   });
+
+  describe("multi-NIC deduplication", () => {
+    it("merges instances with same agent_id + lan_host from different IPs", () => {
+      const lan = makeInstance({
+        agent_id: "main",
+        lan_host: "DESKTOP-ALLPAKD",
+        address: "192.168.1.118",
+        network_scope: "local",
+        auto_name: "desktop-allpakd",
+      });
+      store.upsert(lan);
+
+      const vpn = makeInstance({
+        agent_id: "main",
+        lan_host: "DESKTOP-ALLPAKD",
+        address: "10.66.66.3",
+        network_scope: "vpn",
+      });
+      store.upsert(vpn);
+
+      expect(store.size).toBe(1);
+      const merged = store.getAll()[0];
+      expect(merged.auto_name).toBe("desktop-allpakd");
+    });
+
+    it("preserves alias after merge", () => {
+      const lan = makeInstance({
+        agent_id: "main",
+        lan_host: "macbook.local",
+        address: "192.168.1.50",
+        network_scope: "local",
+        auto_name: "macbook",
+        alias: "home",
+      });
+      store.upsert(lan);
+
+      const vpn = makeInstance({
+        agent_id: "main",
+        lan_host: "macbook.local",
+        address: "10.66.66.5",
+        network_scope: "vpn",
+      });
+      store.upsert(vpn);
+
+      expect(store.size).toBe(1);
+      expect(store.getAll()[0].alias).toBe("home");
+    });
+
+    it("prefers LAN IP over VPN IP", () => {
+      const vpn = makeInstance({
+        agent_id: "main",
+        lan_host: "server.local",
+        address: "10.66.66.3",
+        network_scope: "vpn",
+        auto_name: "server",
+      });
+      store.upsert(vpn);
+
+      const lan = makeInstance({
+        agent_id: "main",
+        lan_host: "server.local",
+        address: "192.168.1.118",
+        network_scope: "local",
+      });
+      store.upsert(lan);
+
+      expect(store.size).toBe(1);
+      const merged = store.getAll()[0];
+      expect(merged.address).toBe("192.168.1.118");
+      expect(merged.network_scope).toBe("local");
+    });
+
+    it("keeps existing address when same scope (first-seen wins)", () => {
+      const first = makeInstance({
+        agent_id: "main",
+        lan_host: "server.local",
+        address: "192.168.1.50",
+        network_scope: "local",
+        auto_name: "server",
+      });
+      store.upsert(first);
+
+      const second = makeInstance({
+        agent_id: "main",
+        lan_host: "server.local",
+        address: "192.168.1.100",
+        network_scope: "local",
+      });
+      store.upsert(second);
+
+      expect(store.size).toBe(1);
+      expect(store.getAll()[0].address).toBe("192.168.1.50");
+    });
+
+    it("does NOT merge when lan_host differs", () => {
+      const inst1 = makeInstance({
+        agent_id: "main",
+        lan_host: "machine-a.local",
+        address: "192.168.1.50",
+        auto_name: "machine-a",
+      });
+      const inst2 = makeInstance({
+        agent_id: "main",
+        lan_host: "machine-b.local",
+        address: "192.168.1.51",
+        auto_name: "machine-b",
+      });
+      store.upsert(inst1);
+      store.upsert(inst2);
+      expect(store.size).toBe(2);
+    });
+
+    it("does NOT merge when agent_id differs", () => {
+      const inst1 = makeInstance({
+        agent_id: "agent-1",
+        lan_host: "same-host.local",
+        address: "192.168.1.50",
+        auto_name: "s1",
+      });
+      const inst2 = makeInstance({
+        agent_id: "agent-2",
+        lan_host: "same-host.local",
+        address: "10.66.66.3",
+        auto_name: "s2",
+      });
+      store.upsert(inst1);
+      store.upsert(inst2);
+      expect(store.size).toBe(2);
+    });
+
+    it("merges correctly with default 'main' agent_id and same hostname", () => {
+      const lan = makeInstance({
+        agent_id: "main",
+        lan_host: "raspi",
+        address: "192.168.1.200",
+        network_scope: "local",
+        auto_name: "raspi",
+      });
+      store.upsert(lan);
+
+      const vpn = makeInstance({
+        agent_id: "main",
+        lan_host: "raspi",
+        address: "10.66.66.10",
+        network_scope: "vpn",
+      });
+      store.upsert(vpn);
+
+      expect(store.size).toBe(1);
+      expect(store.getAll()[0].address).toBe("192.168.1.200");
+      expect(store.getAll()[0].auto_name).toBe("raspi");
+    });
+
+    it("emits merge event with kept instance and removed key", () => {
+      const events: unknown[] = [];
+      store.on("merge", (ev) => events.push(ev));
+
+      const vpn = makeInstance({
+        agent_id: "main",
+        lan_host: "desktop.local",
+        address: "10.66.66.3",
+        network_scope: "vpn",
+        auto_name: "desktop",
+      });
+      store.upsert(vpn);
+
+      const lan = makeInstance({
+        agent_id: "main",
+        lan_host: "desktop.local",
+        address: "192.168.1.118",
+        network_scope: "local",
+      });
+      store.upsert(lan);
+
+      expect(events).toHaveLength(1);
+      const ev = events[0] as { kept: { address: string }; removed_key: string | null };
+      expect(ev.kept.address).toBe("192.168.1.118");
+      expect(ev.removed_key).toBe("10.66.66.3:18789");
+    });
+
+    it("handles case-insensitive lan_host matching", () => {
+      const inst1 = makeInstance({
+        agent_id: "main",
+        lan_host: "MyServer.LOCAL",
+        address: "192.168.1.50",
+        network_scope: "local",
+        auto_name: "myserver",
+      });
+      store.upsert(inst1);
+
+      const inst2 = makeInstance({
+        agent_id: "main",
+        lan_host: "myserver",
+        address: "10.66.66.3",
+        network_scope: "vpn",
+      });
+      store.upsert(inst2);
+
+      expect(store.size).toBe(1);
+    });
+
+    it("preserves claw_name and owner_pubkey from existing on merge", () => {
+      const existing = makeInstance({
+        agent_id: "main",
+        lan_host: "server.local",
+        address: "192.168.1.50",
+        network_scope: "local",
+        auto_name: "server",
+        claw_name: "main.abc123.claw",
+        owner_pubkey: "ed25519:aabbcc",
+      });
+      store.upsert(existing);
+
+      const incoming = makeInstance({
+        agent_id: "main",
+        lan_host: "server.local",
+        address: "10.66.66.3",
+        network_scope: "vpn",
+      });
+      store.upsert(incoming);
+
+      expect(store.size).toBe(1);
+      const merged = store.getAll()[0];
+      expect(merged.claw_name).toBe("main.abc123.claw");
+      expect(merged.owner_pubkey).toBe("ed25519:aabbcc");
+    });
+
+    it("removes old network key when address changes on merge", () => {
+      const vpn = makeInstance({
+        agent_id: "main",
+        lan_host: "desktop.local",
+        address: "10.66.66.3",
+        network_scope: "vpn",
+        auto_name: "desktop",
+      });
+      store.upsert(vpn);
+      expect(store.getByNetworkKey("10.66.66.3", 18789)).toBeDefined();
+
+      const lan = makeInstance({
+        agent_id: "main",
+        lan_host: "desktop.local",
+        address: "192.168.1.118",
+        network_scope: "local",
+      });
+      store.upsert(lan);
+
+      // Old key removed, new key exists
+      expect(store.getByNetworkKey("10.66.66.3", 18789)).toBeUndefined();
+      expect(store.getByNetworkKey("192.168.1.118", 18789)).toBeDefined();
+    });
+  });
 });
