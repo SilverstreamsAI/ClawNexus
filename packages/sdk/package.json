@@ -1,6 +1,6 @@
 {
   "name": "@clawnexus/sdk",
-  "version": "0.1.1",
+  "version": "0.2.5",
   "description": "ClawNexus SDK — programmatic client for discovering and managing OpenClaw instances",
   "license": "MIT",
   "author": "alan-silverstreams <alan@silverstream.tech>",
