@@ -180,13 +180,17 @@ export class ActiveScanner extends EventEmitter {
       const config = (await res.json()) as ControlUiConfig;
       if (!config.assistantAgentId) return null;
 
+      // Resolve lan_host: prefer known hostname from existing registry entries
+      // over raw IP to enable multi-NIC deduplication
+      const lan_host = this.resolveHostForDedup(host, port, config.assistantAgentId);
+
       const now = new Date().toISOString();
       return {
         agent_id: config.assistantAgentId,
         auto_name: "", // will be assigned by store.upsert()
         assistant_name: config.assistantName ?? "",
         display_name: config.displayName ?? config.assistantName ?? "",
-        lan_host: host,
+        lan_host,
         address: host,
         gateway_port: port,
         tls: false,
@@ -199,6 +203,33 @@ export class ActiveScanner extends EventEmitter {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Resolve a stable lan_host for scanned instances to enable multi-NIC dedup.
+   *
+   * When scanning, we only have the target IP as lan_host. If the same instance
+   * was already discovered via mDNS or LocalProbe (which provide real hostnames),
+   * reuse that hostname so _findDuplicate() can match them as the same machine.
+   */
+  private resolveHostForDedup(host: string, port: number, agentId: string): string {
+    if (!this.isIPAddress(host)) return host;
+
+    const agentLower = agentId.toLowerCase();
+    for (const existing of this.store.getAll()) {
+      if (
+        existing.agent_id.toLowerCase() === agentLower &&
+        existing.gateway_port === port &&
+        !this.isIPAddress(existing.lan_host)
+      ) {
+        return existing.lan_host;
+      }
+    }
+    return host;
+  }
+
+  private isIPAddress(value: string): boolean {
+    return /^\d{1,3}(\.\d{1,3}){3}$/.test(value);
   }
 }
 

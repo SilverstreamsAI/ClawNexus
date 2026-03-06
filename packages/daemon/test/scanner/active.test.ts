@@ -145,6 +145,109 @@ describe("ActiveScanner", () => {
     expect(events).toEqual(["start", "complete"]);
   });
 
+  it("resolves lan_host from existing registry entry for multi-NIC dedup", async () => {
+    // Simulate: mDNS already discovered an instance with a real hostname
+    store.upsert({
+      agent_id: "main",
+      auto_name: "desktop-allpakd",
+      assistant_name: "Assistant",
+      display_name: "DESKTOP-ALLPAKD",
+      lan_host: "openclaw.local",
+      address: "192.168.1.118",
+      gateway_port: 18789,
+      tls: false,
+      discovery_source: "mdns",
+      network_scope: "local",
+      status: "online",
+      last_seen: new Date().toISOString(),
+      discovered_at: new Date().toISOString(),
+    });
+
+    // Now scan the same machine via a different IP (WireGuard)
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("10.66.66.3:18789")) {
+        return {
+          ok: true,
+          json: async () => ({
+            assistantAgentId: "main",
+            assistantName: "Assistant",
+            displayName: "DESKTOP-ALLPAKD",
+          }),
+        };
+      }
+      throw new Error("Connection refused");
+    }));
+
+    const discovered = await scanner.scan({ targets: ["10.66.66.3:18789"] });
+    expect(discovered).toHaveLength(1);
+
+    // Should have merged — only 1 instance in store (not 2)
+    const all = store.getAll();
+    const mainInstances = all.filter((i) => i.agent_id === "main");
+    expect(mainInstances).toHaveLength(1);
+    // Merged instance should keep the LAN address (higher priority)
+    expect(mainInstances[0].lan_host).toBe("openclaw.local");
+  });
+
+  it("does not merge scan results with different agent_id", async () => {
+    // Existing instance with different agent_id
+    store.upsert({
+      agent_id: "other-agent",
+      auto_name: "other",
+      assistant_name: "Other",
+      display_name: "Other",
+      lan_host: "other-host.local",
+      address: "192.168.1.118",
+      gateway_port: 18789,
+      tls: false,
+      discovery_source: "mdns",
+      network_scope: "local",
+      status: "online",
+      last_seen: new Date().toISOString(),
+      discovered_at: new Date().toISOString(),
+    });
+
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("10.66.66.3:18789")) {
+        return {
+          ok: true,
+          json: async () => ({
+            assistantAgentId: "main",
+            assistantName: "Assistant",
+          }),
+        };
+      }
+      throw new Error("Connection refused");
+    }));
+
+    const discovered = await scanner.scan({ targets: ["10.66.66.3:18789"] });
+    expect(discovered).toHaveLength(1);
+
+    // Different agent_id → should NOT merge, 2 separate instances
+    const all = store.getAll();
+    expect(all).toHaveLength(2);
+  });
+
+  it("falls back to IP as lan_host when no hostname found in registry", async () => {
+    // No existing entries — scan result should use IP as lan_host
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("10.66.66.3:18789")) {
+        return {
+          ok: true,
+          json: async () => ({
+            assistantAgentId: "main",
+            assistantName: "Assistant",
+          }),
+        };
+      }
+      throw new Error("Connection refused");
+    }));
+
+    const discovered = await scanner.scan({ targets: ["10.66.66.3:18789"] });
+    expect(discovered).toHaveLength(1);
+    expect(discovered[0].lan_host).toBe("10.66.66.3");
+  });
+
   it("skips internal/IPv6 interfaces", async () => {
     vi.mocked(os.networkInterfaces).mockReturnValue({
       lo: [
