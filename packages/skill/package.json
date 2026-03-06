@@ -1,6 +1,6 @@
 {
   "name": "clawnexus-skill",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "ClawNexus Skill for OpenClaw — discover, name, and manage AI instances on your local network",
   "license": "MIT",
   "author": "alan-silverstreams <alan@silverstream.tech>",
