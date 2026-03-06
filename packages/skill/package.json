@@ -1,7 +1,7 @@
 {
   "name": "clawnexus-skill",
   "version": "0.2.6",
-  "description": "ClawNexus OpenClaw Skill — query and manage instances from within OpenClaw",
+  "description": "ClawNexus Skill for OpenClaw — discover, name, and manage AI instances on your local network",
   "license": "MIT",
   "author": "alan-silverstreams <alan@silverstream.tech>",
   "homepage": "https://github.com/SilverstreamsAI/ClawNexus",
@@ -18,7 +18,15 @@
     "skill",
     "clawnexus",
     "instance",
-    "management"
+    "management",
+    "discovery",
+    "network",
+    "lan",
+    "multi-instance",
+    "mdns",
+    "registry",
+    "naming",
+    "identity"
   ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

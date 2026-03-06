@@ -104,15 +104,15 @@ cd packages/daemon && pnpm dev
 
 ## Roadmap
 
-| Version | Feature |
-|---------|---------|
-| **v0.1 (MVP)** | LAN discovery + alias naming |
-| v0.2 | Public registry + `*.id.claw` names |
-| v0.3 | Paid `.claw` alias registration |
-| v0.4 | Relay service for cross-network connections |
-| v0.5 | Registrar API (reseller layer) |
-| v0.6 | Trust layer (reputation + capability verification) |
-| v1.0 | Layer B — autonomous agent-to-agent interaction |
+| Version | Feature | Status |
+|---------|---------|--------|
+| v0.1 (MVP) | LAN discovery + alias naming | ✅ Done |
+| v0.2 | Public registry + `*.id.claw` names | ✅ Done |
+| v0.3 | Paid `.claw` alias registration + SDK | ✅ Done |
+| v0.4 | Relay service for cross-network connections | ✅ Done |
+| v0.5 | Registrar API (reseller layer) | Planned |
+| v0.6 | Trust layer (reputation + capability verification) | Planned |
+| v1.0 | Layer B — autonomous agent-to-agent interaction | ✅ Done |
 
 ## License
 
