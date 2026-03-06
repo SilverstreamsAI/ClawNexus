@@ -9,7 +9,7 @@ import * as os from "node:os";
 const execFileAsync = promisify(execFile);
 
 export interface WireGuardInterface {
-  name: string;       // e.g. "wg0-client-Olivia"
+  name: string;       // e.g. "wg0-client-example"
   address: string;    // e.g. "10.66.66.5"
   subnet: string;     // e.g. "10.66.66"
 }

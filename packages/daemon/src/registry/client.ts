@@ -1,4 +1,4 @@
-// RegistryClient — HTTP client for ClawNexus-Cloud public registry
+// RegistryClient — HTTP client for the ClawNexus public registry
 // Handles register, resolve, getToken, checkName with signature and retry logic
 
 import type { IdentityKeys } from "../crypto/keys.js";

@@ -131,7 +131,7 @@ export class MdnsListener extends EventEmitter {
       // Fetch agent_id from the OpenClaw instance
       const agentId = await this.fetchAgentId(address, port, txt["gatewayTls"] === "1");
       if (!agentId) {
-        // Record unreachable instance for diagnostics (TICKET-021)
+        // Record unreachable instance for diagnostics
         this.emit("mdns:unreachable", {
           address,
           port,

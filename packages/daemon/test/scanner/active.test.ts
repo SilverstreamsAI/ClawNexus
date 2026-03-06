@@ -149,11 +149,11 @@ describe("ActiveScanner", () => {
     // Simulate: mDNS already discovered an instance with a real hostname
     store.upsert({
       agent_id: "main",
-      auto_name: "desktop-allpakd",
+      auto_name: "test-pc",
       assistant_name: "Assistant",
-      display_name: "DESKTOP-ALLPAKD",
+      display_name: "TEST-PC",
       lan_host: "openclaw.local",
-      address: "192.168.1.118",
+      address: "192.168.1.100",
       gateway_port: 18789,
       tls: false,
       discovery_source: "mdns",
@@ -171,7 +171,7 @@ describe("ActiveScanner", () => {
           json: async () => ({
             assistantAgentId: "main",
             assistantName: "Assistant",
-            displayName: "DESKTOP-ALLPAKD",
+            displayName: "TEST-PC",
           }),
         };
       }
@@ -197,7 +197,7 @@ describe("ActiveScanner", () => {
       assistant_name: "Other",
       display_name: "Other",
       lan_host: "other-host.local",
-      address: "192.168.1.118",
+      address: "192.168.1.100",
       gateway_port: 18789,
       tls: false,
       discovery_source: "mdns",

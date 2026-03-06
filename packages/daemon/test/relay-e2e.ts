@@ -2,7 +2,7 @@
  * relay-e2e.ts — End-to-end test for Layer 2 relay
  *
  * Prerequisites:
- *   - ClawNexus-Cloud relay running on ws://localhost:18800/relay
+ *   - Relay server running on ws://localhost:18800/relay
  *   - JWT_SECRET matches relay config (default: "clawnexus-dev-secret")
  *
  * Usage:
@@ -14,8 +14,9 @@ import { RelayConnector } from "../src/relay/connector.js";
 
 // --- Config ---
 const RELAY_URL = process.env.RELAY_URL ?? "ws://localhost:18800/relay";
+// Test-only secret — never use in production
 const JWT_SECRET = process.env.JWT_SECRET ?? "clawnexus-dev-secret";
-const JWT_ISSUER = "registry.silverstream.tech";
+const JWT_ISSUER = "clawnexus-registry.test";
 
 const ALICE_ID = "alice-test-instance";
 const BOB_ID = "bob-test-instance";

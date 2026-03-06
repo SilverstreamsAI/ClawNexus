@@ -1,5 +1,5 @@
 // Health Checker — periodically pings known instances and updates status
-// Enhanced with dual-channel connectivity detection (TICKET-021)
+// Enhanced with dual-channel connectivity detection
 
 import { EventEmitter } from "node:events";
 import type { RegistryStore } from "../registry/store.js";

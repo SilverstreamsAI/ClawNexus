@@ -1,6 +1,6 @@
 // @clawnexus/sdk — ClawNexus SDK
 // Discover and identify OpenClaw-compatible AI instances
-// See: DESIGN_010_ecosystem_compatibility.md
+// ClawLink SDK — ecosystem-compatible client library
 
 export { ClawNexusClient, ClawNexusApiError } from './client.js';
 export type { ClawNexusClientOptions } from './client.js';

@@ -409,16 +409,16 @@ describe("RegistryStore", () => {
     it("merges instances with same agent_id + lan_host from different IPs", () => {
       const lan = makeInstance({
         agent_id: "main",
-        lan_host: "DESKTOP-ALLPAKD",
-        address: "192.168.1.118",
+        lan_host: "TEST-PC",
+        address: "192.168.1.100",
         network_scope: "local",
-        auto_name: "desktop-allpakd",
+        auto_name: "test-pc",
       });
       store.upsert(lan);
 
       const vpn = makeInstance({
         agent_id: "main",
-        lan_host: "DESKTOP-ALLPAKD",
+        lan_host: "TEST-PC",
         address: "10.66.66.3",
         network_scope: "vpn",
       });
@@ -426,7 +426,7 @@ describe("RegistryStore", () => {
 
       expect(store.size).toBe(1);
       const merged = store.getAll()[0];
-      expect(merged.auto_name).toBe("desktop-allpakd");
+      expect(merged.auto_name).toBe("test-pc");
     });
 
     it("preserves alias after merge", () => {
@@ -465,14 +465,14 @@ describe("RegistryStore", () => {
       const lan = makeInstance({
         agent_id: "main",
         lan_host: "server.local",
-        address: "192.168.1.118",
+        address: "192.168.1.100",
         network_scope: "local",
       });
       store.upsert(lan);
 
       expect(store.size).toBe(1);
       const merged = store.getAll()[0];
-      expect(merged.address).toBe("192.168.1.118");
+      expect(merged.address).toBe("192.168.1.100");
       expect(merged.network_scope).toBe("local");
     });
 
@@ -573,14 +573,14 @@ describe("RegistryStore", () => {
       const lan = makeInstance({
         agent_id: "main",
         lan_host: "desktop.local",
-        address: "192.168.1.118",
+        address: "192.168.1.100",
         network_scope: "local",
       });
       store.upsert(lan);
 
       expect(events).toHaveLength(1);
       const ev = events[0] as { kept: { address: string }; removed_key: string | null };
-      expect(ev.kept.address).toBe("192.168.1.118");
+      expect(ev.kept.address).toBe("192.168.1.100");
       expect(ev.removed_key).toBe("10.66.66.3:18789");
     });
 
@@ -645,14 +645,14 @@ describe("RegistryStore", () => {
       const lan = makeInstance({
         agent_id: "main",
         lan_host: "desktop.local",
-        address: "192.168.1.118",
+        address: "192.168.1.100",
         network_scope: "local",
       });
       store.upsert(lan);
 
       // Old key removed, new key exists
       expect(store.getByNetworkKey("10.66.66.3", 18789)).toBeUndefined();
-      expect(store.getByNetworkKey("192.168.1.118", 18789)).toBeDefined();
+      expect(store.getByNetworkKey("192.168.1.100", 18789)).toBeDefined();
     });
   });
 });
