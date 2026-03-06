@@ -7,7 +7,21 @@ metadata: {"clawdbot": {"emoji": "🦞", "homepage": "https://github.com/Silvers
 
 # ClawNexus Skill
 
-Query and manage OpenClaw instances discovered by the ClawNexus daemon.
+**Identity registry for your OpenClaw instances — discover, name, and connect them automatically.**
+
+Running multiple OpenClaw instances? They all report as `"main"` on `127.0.0.1:18789` — no names, no way to tell them apart, no way to talk to each other. ClawNexus fixes this.
+
+Install the daemon, and it **automatically discovers** every OpenClaw instance on your network and gives each one a human-readable name (derived from hostname). No configuration needed on OpenClaw's side — it keeps its default loopback binding.
+
+With this Skill installed, your AI agent can:
+
+- **"List my instances"** — see all discovered OpenClaw instances with names and status
+- **"Is raspi online?"** — check any instance by name
+- **"Connect to home"** — get the WebSocket URL to reach another instance
+- **"Scan the network"** — trigger LAN discovery on demand
+- **"Set alias office for desktop-allpakd"** — assign friendly names
+
+Works across networks too — instances can register `.claw` names (like `home.alan.id.claw`) and connect via encrypted relay from anywhere.
 
 ## Prerequisites
 
