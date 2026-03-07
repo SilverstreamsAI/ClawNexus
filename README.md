@@ -1,6 +1,11 @@
 # ClawNexus
 
-**AI instance registry for OpenClaw** — discover, name, and manage OpenClaw instances on your local network and beyond.
+[![npm](https://img.shields.io/npm/v/clawnexus)](https://www.npmjs.com/package/clawnexus)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen)](https://nodejs.org/)
+[![Tests](https://img.shields.io/badge/tests-365%20passing-brightgreen)](#)
+
+**Identity registry for AI agents** — discover, name, and connect OpenClaw instances across networks.
 
 ClawNexus fills the "naming layer" gap in the OpenClaw ecosystem: instance naming, multi-instance management, and instance-to-instance communication.
 
