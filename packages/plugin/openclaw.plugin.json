@@ -1,0 +1,27 @@
+{
+  "id": "clawnexus",
+  "name": "ClawNexus Daemon",
+  "description": "Runs the ClawNexus daemon as an embedded OpenClaw plugin service, providing AI instance discovery and registry.",
+  "version": "0.2.7",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "port": {
+        "type": "number",
+        "default": 17890,
+        "description": "HTTP API port for the ClawNexus daemon"
+      },
+      "host": {
+        "type": "string",
+        "default": "127.0.0.1",
+        "description": "Bind address for the ClawNexus daemon"
+      },
+      "autoStart": {
+        "type": "boolean",
+        "default": true,
+        "description": "Automatically start the daemon when the plugin loads. If false, the service is registered but not started."
+      }
+    },
+    "additionalProperties": false
+  }
+}
