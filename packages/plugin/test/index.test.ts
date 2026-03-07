@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const { mockStartDaemon } = vi.hoisted(() => {
   const mockStartDaemon = vi.fn().mockResolvedValue({ app: { close: vi.fn() } });
@@ -23,6 +25,15 @@ function createMockApi(pluginConfig: Record<string, unknown> = {}) {
     registerService: vi.fn(),
   };
 }
+
+describe("manifest consistency", () => {
+  it("manifest id must match package name", () => {
+    const pluginRoot = resolve(__dirname, "..");
+    const manifest = JSON.parse(readFileSync(resolve(pluginRoot, "openclaw.plugin.json"), "utf-8"));
+    const pkg = JSON.parse(readFileSync(resolve(pluginRoot, "package.json"), "utf-8"));
+    expect(manifest.id).toBe(pkg.name);
+  });
+});
 
 describe("clawnexusPlugin", () => {
   it("calls registerService with correct service shape", () => {
