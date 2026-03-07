@@ -1,5 +1,5 @@
 {
-  "id": "clawnexus",
+  "id": "clawnexus-plugin",
   "name": "ClawNexus Daemon",
   "description": "Runs the ClawNexus daemon as an embedded OpenClaw plugin service, providing AI instance discovery and registry.",
   "version": "0.2.7",
