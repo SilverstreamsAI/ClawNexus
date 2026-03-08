@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.8] - 2026-03-08
+
+### Added
+- Fingerprint identification for 6 OpenClaw variants (openclaw, goclaw, zeroclaw, picoclaw, nanoclaw, nanobot)
+- Framework adapter system for NanoClaw and NanoBot discovery
+- ClawLink Protocol support (`/.well-known/claw-identity.json`)
+- Adapter default port scanning (3100, 3101, 8000, 8080)
+
+## [0.2.7] - 2026-03-07
+
+### Added
+- OpenClaw plugin adapter package (`clawnexus-plugin`)
+
+### Fixed
+- Align manifest id with package name
+
 ## [0.2.6] - 2026-03-06
 
 ### Fixed
