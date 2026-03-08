@@ -10,7 +10,7 @@ describe("NanoBotAdapter", () => {
 
   it("has correct name and default ports", () => {
     expect(adapter.name).toBe("nanobot");
-    expect(adapter.defaultPorts).toEqual([8000, 8080]);
+    expect(adapter.defaultPorts).toEqual([18790, 8000, 8080]);
   });
 
   it("detects nanobot from /health with framework field", async () => {

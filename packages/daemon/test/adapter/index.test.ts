@@ -25,7 +25,7 @@ describe("adapter registry", () => {
 
   it("getAllAdapterPorts returns sorted unique ports", () => {
     const ports = getAllAdapterPorts();
-    expect(ports).toEqual([3100, 3101, 8000, 8080]);
+    expect(ports).toEqual([3100, 3101, 8000, 8080, 18790]);
     // Verify sorted
     for (let i = 1; i < ports.length; i++) {
       expect(ports[i]).toBeGreaterThan(ports[i - 1]);

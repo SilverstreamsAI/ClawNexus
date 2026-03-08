@@ -1,4 +1,4 @@
-// NanoBot adapter — Python variant, default ports 8000/8080
+// NanoBot adapter — Python variant, default ports 18790/8000/8080
 // Probe: /health → check for framework/app: "nanobot", fallback /api/health
 // Heuristic: python_version field on expected port → infer nanobot
 
@@ -9,7 +9,7 @@ const PROBE_TIMEOUT = 2_000;
 
 export class NanoBotAdapter implements FrameworkAdapter {
   readonly name = "nanobot";
-  readonly defaultPorts = [8000, 8080];
+  readonly defaultPorts = [18790, 8000, 8080];
 
   async probe(host: string, port: number): Promise<ProbeResult | null> {
     // Try /health first
