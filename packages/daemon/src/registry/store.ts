@@ -174,6 +174,8 @@ export class RegistryStore extends EventEmitter {
       // Preserve registry fields
       instance.claw_name = instance.claw_name ?? existing.claw_name;
       instance.owner_pubkey = instance.owner_pubkey ?? existing.owner_pubkey;
+      // Preserve implementation (prefer new value if provided)
+      instance.implementation = instance.implementation ?? existing.implementation;
 
       this.instances.set(key, instance);
       this.scheduleDirtyFlush();
@@ -310,6 +312,7 @@ export class RegistryStore extends EventEmitter {
       labels: existing.labels ?? incoming.labels,
       connectivity: incoming.connectivity ?? existing.connectivity,
       is_self: existing.is_self || incoming.is_self,
+      implementation: incoming.implementation ?? existing.implementation,
     };
   }
 

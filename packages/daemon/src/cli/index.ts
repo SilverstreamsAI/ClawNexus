@@ -141,6 +141,7 @@ function printTable(instances: ClawInstance[]): void {
 
   const header = {
     name: "NAME",
+    impl: "IMPL",
     address: "ADDRESS",
     status: "STATUS",
     channel: "CHANNEL",
@@ -152,6 +153,7 @@ function printTable(instances: ClawInstance[]): void {
     const baseName = i.alias ?? i.auto_name;
     return {
       name: i.is_self ? `${baseName} (self)` : baseName,
+      impl: i.implementation ?? "-",
       address: `${i.address}:${i.gateway_port}`,
       status: i.status,
       channel: getChannel(i),
@@ -162,6 +164,7 @@ function printTable(instances: ClawInstance[]): void {
 
   const colWidths = {
     name: Math.max(header.name.length, ...rows.map((r) => r.name.length)),
+    impl: Math.max(header.impl.length, ...rows.map((r) => r.impl.length)),
     address: Math.max(header.address.length, ...rows.map((r) => r.address.length)),
     status: Math.max(header.status.length, ...rows.map((r) => r.status.length)),
     channel: Math.max(header.channel.length, ...rows.map((r) => r.channel.length)),
@@ -170,10 +173,10 @@ function printTable(instances: ClawInstance[]): void {
   };
 
   const line = (r: typeof header) =>
-    `${r.name.padEnd(colWidths.name)}  ${r.address.padEnd(colWidths.address)}  ${r.status.padEnd(colWidths.status)}  ${r.channel.padEnd(colWidths.channel)}  ${r.source.padEnd(colWidths.source)}  ${r.lastSeen}`;
+    `${r.name.padEnd(colWidths.name)}  ${r.impl.padEnd(colWidths.impl)}  ${r.address.padEnd(colWidths.address)}  ${r.status.padEnd(colWidths.status)}  ${r.channel.padEnd(colWidths.channel)}  ${r.source.padEnd(colWidths.source)}  ${r.lastSeen}`;
 
   console.log(line(header));
-  console.log("-".repeat(colWidths.name + colWidths.address + colWidths.status + colWidths.channel + colWidths.source + colWidths.lastSeen + 10));
+  console.log("-".repeat(colWidths.name + colWidths.impl + colWidths.address + colWidths.status + colWidths.channel + colWidths.source + colWidths.lastSeen + 12));
   for (const row of rows) {
     console.log(line(row));
   }
@@ -430,6 +433,7 @@ async function cmdInfo(args: ParsedArgs): Promise<void> {
     const inst = data as ClawInstance;
     console.log(`Auto Name:     ${inst.auto_name}${inst.is_self ? " (self)" : ""}`);
     console.log(`Agent ID:      ${inst.agent_id}`);
+    if (inst.implementation) console.log(`Implementation: ${inst.implementation}`);
     console.log(`Display Name:  ${inst.display_name}`);
     console.log(`Assistant:     ${inst.assistant_name}`);
     if (inst.alias) console.log(`Alias:         ${inst.alias}`);

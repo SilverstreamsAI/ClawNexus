@@ -91,6 +91,7 @@ export class LocalProbe extends EventEmitter {
         status: "online",
         last_seen: now,
         discovered_at: now,
+        implementation: "openclaw",
         connectivity: {
           lan_reachable: true,
           relay_available: false,

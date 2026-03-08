@@ -1,5 +1,14 @@
 // ClawNexus shared types — used across store, mDNS, health, API, scanner
 
+export type ClawImplementation =
+  | "openclaw"
+  | "goclaw"
+  | "zeroclaw"
+  | "picoclaw"
+  | "nanoclaw"
+  | "nanobot"
+  | "unknown";
+
 export interface ClawInstance {
   // Identifiers (three layers)
   agent_id: string;           // from OpenClaw (read-only, may be duplicated e.g. "main")
@@ -35,6 +44,9 @@ export interface ClawInstance {
   // Registry (v0.2 — public registry integration)
   claw_name?: string;        // "main.id.claw" — registered name on public registry
   owner_pubkey?: string;     // "ed25519:aabb..." — owner identity key
+
+  // Implementation variant (fingerprint identification)
+  implementation?: ClawImplementation;
 
   // User-defined
   labels?: Record<string, string>;

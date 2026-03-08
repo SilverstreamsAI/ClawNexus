@@ -8,6 +8,7 @@ export type { ClawNexusClientOptions } from './client.js';
 // Re-export core types for SDK consumers
 export type {
   ClawInstance,
+  ClawImplementation,
   RegistryFile,
   ControlUiConfig,
   PolicyConfig,

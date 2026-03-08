@@ -5,6 +5,7 @@ import { EventEmitter } from "node:events";
 import * as os from "node:os";
 import type { RegistryStore } from "../registry/store.js";
 import type { ClawInstance, ControlUiConfig } from "../types.js";
+import { identifyImplementation } from "./fingerprint.js";
 import { detectWireGuard } from "./wireguard.js";
 import type { WireGuardInfo } from "./wireguard.js";
 
@@ -12,6 +13,13 @@ const CONCURRENCY = 50;
 const TIMEOUT_PER_HOST = 2_000;
 const DEFAULT_PORT = 18789;
 const CONFIG_PATH = "/__openclaw/control-ui-config.json";
+
+// Default ports for all known implementations
+const DEFAULT_SCAN_PORTS = [
+  18789,  // OpenClaw, GoClaw
+  42617,  // ZeroClaw
+  18790,  // PicoClaw
+];
 
 export interface ScanOptions {
   /** Additional ports to scan on each discovered subnet IP (default: [18789]) */
@@ -58,8 +66,8 @@ export class ActiveScanner extends EventEmitter {
 
       // 2. Scan subnets (skip if only explicit targets were given)
       if (!hasExplicitTargets) {
-        const ports = options?.ports ?? [DEFAULT_PORT];
-        const allPorts = [...new Set([DEFAULT_PORT, ...ports])];
+        const ports = options?.ports ?? DEFAULT_SCAN_PORTS;
+        const allPorts = [...new Set([...DEFAULT_SCAN_PORTS, ...ports])];
 
         const wgInfo = await detectWireGuard();
         const subnets = this.detectSubnets(wgInfo);
@@ -170,26 +178,19 @@ export class ActiveScanner extends EventEmitter {
     port: number = DEFAULT_PORT,
     networkScope: ClawInstance["network_scope"] = "local",
   ): Promise<ClawInstance | null> {
-    const url = `http://${host}:${port}${CONFIG_PATH}`;
-    try {
-      const res = await fetch(url, {
-        signal: AbortSignal.timeout(TIMEOUT_PER_HOST),
-      });
-      if (!res.ok) return null;
+    // Try OpenClaw-compatible config endpoint first
+    const configResult = await this.probeConfigEndpoint(host, port);
 
-      const config = (await res.json()) as ControlUiConfig;
-      if (!config.assistantAgentId) return null;
-
-      // Resolve lan_host: prefer known hostname from existing registry entries
-      // over raw IP to enable multi-NIC deduplication
-      const lan_host = this.resolveHostForDedup(host, port, config.assistantAgentId);
-
+    if (configResult) {
+      // Got config — identify variant (openclaw vs goclaw)
+      const fp = await identifyImplementation(host, port, configResult);
+      const lan_host = this.resolveHostForDedup(host, port, configResult.assistantAgentId);
       const now = new Date().toISOString();
       return {
-        agent_id: config.assistantAgentId,
-        auto_name: "", // will be assigned by store.upsert()
-        assistant_name: config.assistantName ?? "",
-        display_name: config.displayName ?? config.assistantName ?? "",
+        agent_id: configResult.assistantAgentId,
+        auto_name: "",
+        assistant_name: configResult.assistantName ?? "",
+        display_name: configResult.displayName ?? configResult.assistantName ?? "",
         lan_host,
         address: host,
         gateway_port: port,
@@ -199,7 +200,47 @@ export class ActiveScanner extends EventEmitter {
         status: "online",
         last_seen: now,
         discovered_at: now,
+        implementation: fp.implementation,
       };
+    }
+
+    // No config endpoint — try fingerprint-only identification (zeroclaw, picoclaw)
+    const fp = await identifyImplementation(host, port, null);
+    if (fp.implementation === "unknown") return null;
+
+    const now = new Date().toISOString();
+    return {
+      agent_id: `${fp.implementation}@${host}`,
+      auto_name: "",
+      assistant_name: "",
+      display_name: fp.implementation,
+      lan_host: host,
+      address: host,
+      gateway_port: port,
+      tls: false,
+      discovery_source: "scan",
+      network_scope: networkScope,
+      status: "online",
+      last_seen: now,
+      discovered_at: now,
+      implementation: fp.implementation,
+    };
+  }
+
+  private async probeConfigEndpoint(
+    host: string,
+    port: number,
+  ): Promise<ControlUiConfig | null> {
+    const url = `http://${host}:${port}${CONFIG_PATH}`;
+    try {
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(TIMEOUT_PER_HOST),
+      });
+      if (!res.ok) return null;
+
+      const config = (await res.json()) as ControlUiConfig;
+      if (!config.assistantAgentId) return null;
+      return config;
     } catch {
       return null;
     }
