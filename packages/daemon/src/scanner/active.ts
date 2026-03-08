@@ -8,6 +8,7 @@ import type { ClawInstance, ControlUiConfig } from "../types.js";
 import { identifyImplementation } from "./fingerprint.js";
 import { detectWireGuard } from "./wireguard.js";
 import type { WireGuardInfo } from "./wireguard.js";
+import { ADAPTERS, getAllAdapterPorts } from "../adapter/index.js";
 
 const CONCURRENCY = 50;
 const TIMEOUT_PER_HOST = 2_000;
@@ -15,11 +16,12 @@ const DEFAULT_PORT = 18789;
 const CONFIG_PATH = "/__openclaw/control-ui-config.json";
 
 // Default ports for all known implementations
-const DEFAULT_SCAN_PORTS = [
+const BUILTIN_PORTS = [
   18789,  // OpenClaw, GoClaw
   42617,  // ZeroClaw
   18790,  // PicoClaw
 ];
+const DEFAULT_SCAN_PORTS = [...new Set([...BUILTIN_PORTS, ...getAllAdapterPorts()])];
 
 export interface ScanOptions {
   /** Additional ports to scan on each discovered subnet IP (default: [18789]) */
@@ -206,25 +208,43 @@ export class ActiveScanner extends EventEmitter {
 
     // No config endpoint — try fingerprint-only identification (zeroclaw, picoclaw)
     const fp = await identifyImplementation(host, port, null);
-    if (fp.implementation === "unknown") return null;
+    if (fp.implementation !== "unknown") {
+      const now = new Date().toISOString();
+      return {
+        agent_id: `${fp.implementation}@${host}`,
+        auto_name: "",
+        assistant_name: "",
+        display_name: fp.implementation,
+        lan_host: host,
+        address: host,
+        gateway_port: port,
+        tls: false,
+        discovery_source: "scan",
+        network_scope: networkScope,
+        status: "online",
+        last_seen: now,
+        discovered_at: now,
+        implementation: fp.implementation,
+      };
+    }
 
-    const now = new Date().toISOString();
-    return {
-      agent_id: `${fp.implementation}@${host}`,
-      auto_name: "",
-      assistant_name: "",
-      display_name: fp.implementation,
-      lan_host: host,
-      address: host,
-      gateway_port: port,
-      tls: false,
-      discovery_source: "scan",
-      network_scope: networkScope,
-      status: "online",
-      last_seen: now,
-      discovered_at: now,
-      implementation: fp.implementation,
-    };
+    // Fingerprint unknown — try framework adapters as final fallback
+    for (const adapter of ADAPTERS) {
+      const probe = await adapter.probe(host, port);
+      if (probe) {
+        const now = new Date().toISOString();
+        const partial = adapter.toClawInstance(host, port, probe);
+        return {
+          ...partial,
+          auto_name: "",
+          network_scope: networkScope,
+          last_seen: now,
+          discovered_at: now,
+        } as ClawInstance;
+      }
+    }
+
+    return null;
   }
 
   private async probeConfigEndpoint(
