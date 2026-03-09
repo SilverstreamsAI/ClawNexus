@@ -23,6 +23,9 @@ import { RegistryClient } from "../registry/client.js";
 import { AutoRegister } from "../registry/auto-register.js";
 import { RemoteDiscovery } from "../registry/discovery.js";
 import { RelayConnector } from "../relay/connector.js";
+import { buildAgentCard } from "../a2a/card.js";
+import { readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
 
 const PORT = parseInt(process.env.CLAWNEXUS_PORT ?? "17890", 10);
 const HOST = process.env.CLAWNEXUS_HOST ?? "127.0.0.1";
@@ -407,6 +410,40 @@ export function registerDiagnosticsRoutes(
   });
 }
 
+export function registerA2aRoutes(
+  app: FastifyInstance,
+  store: RegistryStore,
+  daemonVersion: string,
+): void {
+  // A2A standard well-known endpoint — returns card for the local (is_self) instance
+  app.get("/.well-known/agent-card.json", async (_request, reply) => {
+    const self = store.getAll().find((i) => i.is_self);
+    if (!self) {
+      return reply.status(404).send({ error: "No local instance discovered" });
+    }
+    return buildAgentCard(self, daemonVersion);
+  });
+
+  // All instances as Agent Cards
+  app.get("/a2a/cards", async () => {
+    const instances = store.getAll();
+    const cards = instances.map((i) => buildAgentCard(i, daemonVersion));
+    return { count: cards.length, cards };
+  });
+
+  // Single instance Agent Card by name
+  app.get<{ Params: { name: string } }>(
+    "/a2a/cards/:name",
+    async (request, reply) => {
+      const inst = store.resolve(request.params.name);
+      if (!inst) {
+        return reply.status(404).send({ error: "Instance not found" });
+      }
+      return buildAgentCard(inst, daemonVersion);
+    },
+  );
+}
+
 export interface DaemonOptions {
   port?: number;
   host?: string;
@@ -545,6 +582,12 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     getAutoRegister: () => autoRegister,
     unreachable,
   });
+
+  // A2A Agent Card routes
+  const daemonPkg = JSON.parse(
+    readFileSync(join(__dirname, "../../package.json"), "utf-8"),
+  ) as { version: string };
+  registerA2aRoutes(app, store, daemonPkg.version);
 
   // 9. Initialize Registry integration (non-fatal — LAN must work without it)
   let identityKeys: IdentityKeys | null = null;

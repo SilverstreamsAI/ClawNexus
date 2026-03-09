@@ -18,4 +18,6 @@ export type {
   TaskRecord,
   TaskStats,
   InboxItem,
+  AgentCard,
+  AgentSkill,
 } from './types.js';

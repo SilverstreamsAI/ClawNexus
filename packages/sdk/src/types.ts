@@ -167,3 +167,34 @@ export interface InboxItem {
   task?: TaskSpec;
   timestamp: string;
 }
+
+// --- A2A Types (Agent Card, v0.3.0 spec) ---
+
+export interface AgentSkill {
+  id: string;
+  name: string;
+  description: string;
+  tags: string[];
+  examples?: string[];
+  inputModes?: string[];
+  outputModes?: string[];
+}
+
+export interface AgentCard {
+  name: string;
+  description: string;
+  url: string;
+  version: string;
+  capabilities: {
+    streaming: boolean;
+    pushNotifications: boolean;
+    stateTransitionHistory: boolean;
+  };
+  skills: AgentSkill[];
+  defaultInputModes: string[];
+  defaultOutputModes: string[];
+  provider: {
+    name: string;
+    url?: string;
+  };
+}
