@@ -9,7 +9,6 @@ import * as os from "node:os";
 import { execSync } from "node:child_process";
 import type { RegistryStore } from "../registry/store.js";
 import type { ClawInstance } from "../types.js";
-import { ADAPTERS } from "../adapter/index.js";
 
 const CDP_PORT = 17891;
 const TCP_PROBE_TIMEOUT = 2_000;
@@ -274,11 +273,16 @@ export class BroadcastDiscovery extends EventEmitter {
   }
 
   private async _tcpProbe(address: string, port: number): Promise<boolean> {
-    // Try all adapters — the peer may be running any framework
-    for (const adapter of ADAPTERS) {
-      const result = await adapter.probe(address, port);
-      if (result) return true;
+    // Quick HTTP liveness check — just confirm the port is alive.
+    // Framework identification is left to HealthChecker / subsequent scans.
+    try {
+      const res = await fetch(`http://${address}:${port}/`, {
+        signal: AbortSignal.timeout(TCP_PROBE_TIMEOUT),
+      });
+      // Any HTTP response (including 404, 500) means the port is alive
+      return res.status > 0;
+    } catch {
+      return false;
     }
-    return false;
   }
 }

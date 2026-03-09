@@ -57,12 +57,34 @@ export class LocalProbe extends EventEmitter {
     }
   }
 
+  /** Mark offline any previously-known self instances that were not rediscovered this cycle */
+  private _markOfflineStaleSelf(staleKeys: Set<string>): void {
+    for (const key of staleKeys) {
+      const [address, portStr] = key.split(":");
+      this._markOffline(Number(portStr));
+    }
+  }
+
   async probe(): Promise<ClawInstance | null> {
+    // Snapshot all current is_self instances so we can mark stale ones offline later
+    const previousSelfKeys = new Set(
+      this.store
+        .getAll()
+        .filter((inst) => inst.is_self)
+        .map((inst) => `${inst.address}:${inst.gateway_port}`),
+    );
+
     // 1. Try OpenClaw on the configured port (backward-compatible primary path)
     const openClawResult = await this.probeOpenClaw(this.port);
-    if (openClawResult) return openClawResult;
+    if (openClawResult) {
+      previousSelfKeys.delete(`${LOCAL_HOST}:${this.port}`);
+      this._markOfflineStaleSelf(previousSelfKeys);
+      return openClawResult;
+    }
 
     // 2. Try all adapters on their default ports (skip OpenClaw on this.port, already tried)
+    let found: ClawInstance | null = null;
+
     for (const adapter of ADAPTERS) {
       if (adapter.name === "openclaw") continue; // already tried above
 
@@ -99,50 +121,63 @@ export class LocalProbe extends EventEmitter {
 
           this.store.upsert(instance);
           this.emit("local:discovered", instance);
-          return instance;
+          previousSelfKeys.delete(`${LOCAL_HOST}:${instance.gateway_port}`);
+          found = instance;
+          break;
         }
       }
 
       // Then try HTTP probe on default ports
-      for (const port of adapter.defaultPorts) {
-        const probeResult = await adapter.probe(LOCAL_HOST, port);
-        if (probeResult) {
-          const now = new Date().toISOString();
-          const partial = adapter.toClawInstance(LOCAL_HOST, port, probeResult);
-          const instance: ClawInstance = {
-            agent_id: partial.agent_id ?? `${adapter.name}@localhost`,
-            auto_name: "",
-            assistant_name: partial.assistant_name ?? "",
-            display_name: partial.display_name ?? adapter.name,
-            lan_host: os.hostname(),
-            address: LOCAL_HOST,
-            gateway_port: port,
-            tls: false,
-            discovery_source: "local",
-            network_scope: "local",
-            status: "online",
-            last_seen: now,
-            discovered_at: now,
-            implementation: partial.implementation,
-            connectivity: {
-              lan_reachable: true,
-              relay_available: false,
-              preferred_channel: "local",
-              last_lan_check: now,
-            },
-            is_self: true,
-          };
+      if (!found) {
+        for (const port of adapter.defaultPorts) {
+          const probeResult = await adapter.probe(LOCAL_HOST, port);
+          if (probeResult) {
+            const now = new Date().toISOString();
+            const partial = adapter.toClawInstance(LOCAL_HOST, port, probeResult);
+            const instance: ClawInstance = {
+              agent_id: partial.agent_id ?? `${adapter.name}@localhost`,
+              auto_name: "",
+              assistant_name: partial.assistant_name ?? "",
+              display_name: partial.display_name ?? adapter.name,
+              lan_host: os.hostname(),
+              address: LOCAL_HOST,
+              gateway_port: port,
+              tls: false,
+              discovery_source: "local",
+              network_scope: "local",
+              status: "online",
+              last_seen: now,
+              discovered_at: now,
+              implementation: partial.implementation,
+              connectivity: {
+                lan_reachable: true,
+                relay_available: false,
+                preferred_channel: "local",
+                last_lan_check: now,
+              },
+              is_self: true,
+            };
 
-          this.store.upsert(instance);
-          this.emit("local:discovered", instance);
-          return instance;
+            this.store.upsert(instance);
+            this.emit("local:discovered", instance);
+            previousSelfKeys.delete(`${LOCAL_HOST}:${port}`);
+            found = instance;
+            break;
+          }
         }
       }
+
+      if (found) break;
+    }
+
+    if (found) {
+      this._markOfflineStaleSelf(previousSelfKeys);
+      return found;
     }
 
     // Nothing found
     this.localAgentId = null;
-    this._markOffline(this.port);
+    this._markOfflineStaleSelf(previousSelfKeys);
     this.emit("local:unavailable");
     return null;
   }
@@ -155,15 +190,15 @@ export class LocalProbe extends EventEmitter {
         signal: AbortSignal.timeout(PROBE_TIMEOUT),
       });
       if (!res.ok) {
-        this._markOffline(port);
-        this.emit("local:unreachable", { reason: `HTTP ${res.status}` });
+        // Port responded but not valid OpenClaw — don't mark offline or emit unreachable,
+        // because another adapter may be occupying this port. Let the adapter loop try.
         return null;
       }
 
       const config = (await res.json()) as ControlUiConfig;
       if (!config.assistantAgentId) {
-        this._markOffline(port);
-        this.emit("local:unreachable", { reason: "missing assistantAgentId" });
+        // Has an HTTP server but no assistantAgentId — not a valid OpenClaw instance.
+        // Don't mark offline; another adapter may match this endpoint.
         return null;
       }
 

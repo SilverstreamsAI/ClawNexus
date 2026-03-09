@@ -219,7 +219,7 @@ describe("BroadcastDiscovery", () => {
   it("upserts instance on valid claw_announce with successful TCP probe", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ assistantAgentId: "peer-agent", assistantName: "Peer" }),
+      status: 200,
     }));
     const upsertSpy = vi.spyOn(store, "upsert");
 
@@ -251,6 +251,23 @@ describe("BroadcastDiscovery", () => {
     await new Promise((r) => setTimeout(r, 50));
 
     expect(upsertSpy).not.toHaveBeenCalled();
+  });
+
+  // 6b. _tcpProbe accepts any HTTP response (even 404 / no assistantAgentId) as alive
+  it("upserts instance when TCP probe gets non-200 HTTP response (port is alive)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+    }));
+    const upsertSpy = vi.spyOn(store, "upsert");
+
+    await discovery.start();
+    mockSocket.emit("message", makeAnnounceMsg(), { address: "192.168.1.50", port: 17891 });
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Any HTTP response means alive — upsert should happen
+    expect(upsertSpy).toHaveBeenCalledOnce();
   });
 
   // 7. claw_announce + TCP verify fails → no upsert
