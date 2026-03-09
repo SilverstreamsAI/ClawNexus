@@ -15,6 +15,7 @@ import type { UnreachableInstance } from "../types.js";
 import { PolicyEngine } from "../agent/engine.js";
 import { TaskManager } from "../agent/tasks.js";
 import { AgentRouter } from "../agent/router.js";
+import { TaskExecutor } from "../agent/executor.js";
 import type { PolicyConfig, TaskDirection, TaskState } from "../agent/types.js";
 import { BroadcastDiscovery } from "../discovery/broadcast.js";
 import { loadOrCreateKeys, getPublicKeyString } from "../crypto/keys.js";
@@ -86,13 +87,24 @@ export interface AgentDeps {
   engine: PolicyEngine;
   tasks: TaskManager;
   getRouter: () => AgentRouter | null;
+  getExecutor: () => TaskExecutor | null;
 }
 
 export function registerAgentRoutes(
   app: FastifyInstance,
   deps: AgentDeps,
 ): void {
-  const { engine, tasks, getRouter } = deps;
+  const { engine, tasks, getRouter, getExecutor } = deps;
+
+  // --- Executor status ---
+
+  app.get("/agent/executor/status", async () => {
+    const executor = getExecutor();
+    if (!executor) {
+      return { gw_state: "not_initialized", queue_length: 0, executing: [], max_concurrent: 0 };
+    }
+    return executor.getStatus();
+  });
 
   // --- Policy ---
 
@@ -508,6 +520,12 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
   const taskManager = new TaskManager();
   await taskManager.init();
 
+  // 6b. Create TaskExecutor
+  const taskExecutor = new TaskExecutor({
+    tasks: taskManager,
+    maxConcurrent: engine.getConfig().max_concurrent_tasks,
+  });
+
   // 7. Detect WireGuard interfaces
   const wgInfo: WireGuardInfo = await detectWireGuard();
 
@@ -570,6 +588,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     engine,
     tasks: taskManager,
     getRouter: () => agentRouter,
+    getExecutor: () => taskExecutor,
   });
 
   // Diagnostics routes
@@ -731,6 +750,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
   // Graceful shutdown hook
   app.addHook("onClose", async () => {
     if (tokenRefreshTimer) clearInterval(tokenRefreshTimer);
+    await taskExecutor.close();
     autoRegister?.stop();
     agentRouter?.stop();
     taskManager.close();
@@ -744,6 +764,9 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
 
   await app.listen({ port, host });
 
+  // Start task executor (independent of relay — connects to local OpenClaw Gateway)
+  taskExecutor.start();
+
   const setConnector = (c: RelayConnector) => {
     connector = c;
     // When relay connector is set, create and start AgentRouter
@@ -756,6 +779,9 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
       });
       agentRouter.start();
       app.log.info("Layer B agent router started");
+
+      // Give executor the router reference so it can send reports
+      taskExecutor.setRouter(agentRouter);
     }
   };
 

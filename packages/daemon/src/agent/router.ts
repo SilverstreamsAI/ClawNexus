@@ -12,6 +12,7 @@ import type {
   TaskDirection,
   PolicyDecision,
 } from "./types.js";
+import type { ReportPayload, HeartbeatPayload } from "./types.js";
 import { parseEnvelope, createEnvelope, isExpired, ProtocolError } from "./protocol.js";
 import { randomUUID } from "node:crypto";
 
@@ -115,6 +116,39 @@ export class AgentRouter extends EventEmitter {
       { in_reply_to: entry.envelope.message_id },
     );
     this.sendMessage(entry.roomId, reply);
+  }
+
+  /** Send a task report to a peer */
+  sendReport(
+    roomId: string,
+    targetClawId: string,
+    taskId: string,
+    status: "completed" | "failed",
+    result?: unknown,
+    error?: string,
+  ): void {
+    const payload: ReportPayload = { task_id: taskId, status, result, error };
+    const envelope = createEnvelope(
+      this.localClawId,
+      targetClawId,
+      "report",
+      payload,
+      { in_reply_to: taskId },
+    );
+    this.sendMessage(roomId, envelope);
+  }
+
+  /** Send a heartbeat for an executing task */
+  sendHeartbeat(roomId: string, targetClawId: string, taskId: string, progressPct?: number): void {
+    const payload: HeartbeatPayload = { task_id: taskId, progress_pct: progressPct };
+    const envelope = createEnvelope(
+      this.localClawId,
+      targetClawId,
+      "heartbeat",
+      payload,
+      { in_reply_to: taskId },
+    );
+    this.sendMessage(roomId, envelope);
   }
 
   /** Get pending inbox items */

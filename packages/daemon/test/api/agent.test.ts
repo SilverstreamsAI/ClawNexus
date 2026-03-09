@@ -23,7 +23,7 @@ describe("Agent API routes", () => {
     await tasks.init();
 
     app = Fastify();
-    registerAgentRoutes(app, { engine, tasks, getRouter: () => null });
+    registerAgentRoutes(app, { engine, tasks, getRouter: () => null, getExecutor: () => null });
     await app.ready();
   });
 
@@ -164,6 +164,17 @@ describe("Agent API routes", () => {
         payload: {},
       });
       expect(res.statusCode).toBe(404);
+    });
+  });
+
+  describe("GET /agent/executor/status", () => {
+    it("returns default status when executor not initialized", async () => {
+      const res = await app.inject({ method: "GET", url: "/agent/executor/status" });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.gw_state).toBe("not_initialized");
+      expect(body.queue_length).toBe(0);
+      expect(body.executing).toEqual([]);
     });
   });
 
