@@ -25,6 +25,7 @@ export function makeInstance(overrides: Partial<ClawInstance> = {}): ClawInstanc
     discovered_at: overrides.discovered_at ?? now,
     connectivity: overrides.connectivity,
     is_self: overrides.is_self,
+    implementation: overrides.implementation,
     claw_name: overrides.claw_name,
     owner_pubkey: overrides.owner_pubkey,
     labels: overrides.labels,

@@ -30,44 +30,14 @@ describe("ActiveScanner adapter integration", () => {
     await fs.promises.rm(tmpDir, { recursive: true, force: true });
   });
 
-  it("discovers NanoClaw instance via adapter", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => {
-      // NanoClaw on port 3100
-      if (url === "http://192.168.1.50:3100/health") {
-        return {
-          ok: true,
-          json: async () => ({ framework: "nanoclaw", version: "0.1.0", name: "My NanoClaw" }),
-        };
-      }
-      // No ClawLink identity
-      if (url.includes("/.well-known/claw-identity.json")) {
-        return { ok: false, status: 404 };
-      }
-      // No OpenClaw config
-      if (url.includes("/__openclaw/control-ui-config.json")) {
-        return { ok: false, status: 404 };
-      }
-      // Fingerprint /health should not match zeroclaw/picoclaw patterns
-      if (url.includes("/health")) {
-        return {
-          ok: true,
-          json: async () => ({ framework: "nanoclaw", version: "0.1.0", name: "My NanoClaw" }),
-          text: async () => JSON.stringify({ framework: "nanoclaw", version: "0.1.0", name: "My NanoClaw" }),
-        };
-      }
-      if (url.includes("/ready")) {
-        return { ok: false, status: 404 };
-      }
+  it("NanoClaw adapter is placeholder (probe returns null, no HTTP server)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => {
       throw new Error("Connection refused");
     }));
 
+    // NanoClaw has no HTTP server, so scanning its old port discovers nothing
     const discovered = await scanner.scan({ targets: ["192.168.1.50:3100"] });
-    expect(discovered).toHaveLength(1);
-    expect(discovered[0].implementation).toBe("nanoclaw");
-    expect(discovered[0].agent_id).toBe("nanoclaw@192.168.1.50");
-    expect(discovered[0].display_name).toBe("My NanoClaw");
-    expect(discovered[0].gateway_port).toBe(3100);
-    expect(discovered[0].discovery_source).toBe("scan");
+    expect(discovered).toHaveLength(0);
   });
 
   it("discovers NanoBot instance via adapter", async () => {

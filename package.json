@@ -6,7 +6,7 @@
     "build": "pnpm -r build",
     "dev": "pnpm -r --parallel dev",
     "lint": "pnpm -r lint",
-    "test": "pnpm -r test",
+    "test": "vitest run",
     "clean": "pnpm -r --parallel exec rm -rf dist"
   },
   "engines": {

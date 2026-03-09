@@ -7,6 +7,7 @@ export type ClawImplementation =
   | "picoclaw"
   | "nanoclaw"
   | "nanobot"
+  | "openfang"
   | "unknown";
 
 export interface ClawInstance {

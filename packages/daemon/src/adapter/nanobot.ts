@@ -35,6 +35,20 @@ export class NanoBotAdapter implements FrameworkAdapter {
     };
   }
 
+  async healthCheck(host: string, port: number): Promise<boolean> {
+    try {
+      const res = await fetch(`http://${host}:${port}/health`, {
+        signal: AbortSignal.timeout(PROBE_TIMEOUT),
+      });
+      if (!res.ok) return false;
+      const data = (await res.json()) as Record<string, unknown>;
+      return data.framework === "nanobot" || data.app === "nanobot" ||
+        (typeof data.python_version === "string" && this.defaultPorts.includes(port));
+    } catch {
+      return false;
+    }
+  }
+
   private async probeHealth(host: string, port: number): Promise<ProbeResult | null> {
     try {
       const res = await fetch(`http://${host}:${port}/health`, {

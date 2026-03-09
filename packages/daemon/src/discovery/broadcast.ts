@@ -9,12 +9,12 @@ import * as os from "node:os";
 import { execSync } from "node:child_process";
 import type { RegistryStore } from "../registry/store.js";
 import type { ClawInstance } from "../types.js";
+import { ADAPTERS } from "../adapter/index.js";
 
 const CDP_PORT = 17891;
 const TCP_PROBE_TIMEOUT = 2_000;
 const ANNOUNCE_INTERVAL_BASE = 60_000;
 const ANNOUNCE_JITTER = 10_000;
-const CONFIG_PATH = "/__openclaw/control-ui-config.json";
 
 interface CdpDiscover {
   type: "claw_discover";
@@ -274,14 +274,11 @@ export class BroadcastDiscovery extends EventEmitter {
   }
 
   private async _tcpProbe(address: string, port: number): Promise<boolean> {
-    const url = `http://${address}:${port}${CONFIG_PATH}`;
-    try {
-      const res = await fetch(url, {
-        signal: AbortSignal.timeout(TCP_PROBE_TIMEOUT),
-      });
-      return res.ok;
-    } catch {
-      return false;
+    // Try all adapters — the peer may be running any framework
+    for (const adapter of ADAPTERS) {
+      const result = await adapter.probe(address, port);
+      if (result) return true;
     }
+    return false;
   }
 }

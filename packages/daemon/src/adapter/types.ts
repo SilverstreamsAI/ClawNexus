@@ -15,4 +15,9 @@ export interface FrameworkAdapter {
   readonly defaultPorts: number[];
   probe(host: string, port: number): Promise<ProbeResult | null>;
   toClawInstance(host: string, port: number, probe: ProbeResult): Partial<ClawInstance>;
+  healthCheck(host: string, port: number): Promise<boolean>;
+
+  // Local filesystem probe (for frameworks without HTTP servers)
+  probeLocal?(): Promise<ProbeResult | null>;
+  healthCheckLocal?(): Promise<boolean>;
 }

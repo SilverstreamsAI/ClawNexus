@@ -217,7 +217,10 @@ describe("BroadcastDiscovery", () => {
 
   // 5. claw_announce + TCP verify success → store.upsert called with discovery_source="broadcast"
   it("upserts instance on valid claw_announce with successful TCP probe", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ assistantAgentId: "peer-agent", assistantName: "Peer" }),
+    }));
     const upsertSpy = vi.spyOn(store, "upsert");
 
     await discovery.start();
@@ -235,7 +238,10 @@ describe("BroadcastDiscovery", () => {
 
   // 6. claw_announce from non-local subnet → filtered, no upsert
   it("ignores claw_announce from non-local subnet", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ assistantAgentId: "peer-agent", assistantName: "Peer" }),
+    }));
     const upsertSpy = vi.spyOn(store, "upsert");
 
     await discovery.start();
@@ -350,7 +356,10 @@ describe("BroadcastDiscovery", () => {
 
   // 15. BUG-1 fix: claw_announce from own IP → ignored (no upsert)
   it("ignores claw_announce from own interface IP (self-loop)", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ assistantAgentId: "self", assistantName: "Self" }),
+    }));
     const upsertSpy = vi.spyOn(store, "upsert");
 
     await discovery.start();
@@ -437,7 +446,10 @@ describe("BroadcastDiscovery", () => {
       ],
     } as ReturnType<typeof os.networkInterfaces>);
 
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ assistantAgentId: "wg-peer", assistantName: "WG" }),
+    }));
     const upsertSpy = vi.spyOn(store, "upsert");
 
     await discovery.start();
