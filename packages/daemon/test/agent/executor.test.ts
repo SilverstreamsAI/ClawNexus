@@ -653,15 +653,14 @@ describe("TaskExecutor", () => {
   });
 
   describe("scheduleReconnect", () => {
-    it("reconnects when tasks are queued but not executing (bug fix)", async () => {
-      // This tests the fix for: scheduleReconnect() previously only checked
-      // this.executing.size > 0, ignoring tasks stuck in the queue.
-      // Scenario: maxConcurrent=1, two tasks enqueued, gateway drops after first starts.
-      // The second task is in queue (not executing). Without the fix, reconnect
-      // would not trigger because executing.size becomes 0 after the first task fails.
+    it("reconnects via scheduleReconnect when executing tasks exist and gateway drops", { timeout: 10000 }, async () => {
+      // Verifies the scheduleReconnect path: gateway drops while a task is executing,
+      // 5s later it reconnects and the task can resume on the new connection.
+      // This test exercises ws.on("close") → scheduleReconnect() → 5s → ensureConnection().
 
       const port = getRandomPort();
       let connectionCount = 0;
+      let chatSendCount = 0;
       const connections: WebSocket[] = [];
       const wss = new WebSocketServer({ port });
 
@@ -695,73 +694,169 @@ describe("TaskExecutor", () => {
           }
 
           if (msg.type === "req" && msg.method === "chat.send") {
+            chatSendCount++;
+            // Never send final — task stays in executing
+          }
+        });
+      });
+
+      executor = new TaskExecutor({ tasks, gatewayUrl: `ws://127.0.0.1:${port}`, maxConcurrent: 3 });
+
+      // Enqueue a task that will enter executing (gateway never responds with final)
+      tasks.create(makeTaskRecord({
+        task_id: "reconnect-exec-1",
+        state: "accepted",
+        direction: "inbound",
+        task: { task_type: "test", description: "Long-running task", constraints: { max_duration_s: 300 } },
+      }));
+
+      executor.start();
+
+      // Wait for task to be sent to gateway
+      await vi.waitFor(() => {
+        expect(chatSendCount).toBe(1);
+      }, { timeout: 3000 });
+
+      expect(executor.getStatus().executing).toHaveLength(1);
+      expect(connectionCount).toBe(1);
+
+      // Drop the gateway connection from server side → triggers ws.on("close") → scheduleReconnect()
+      for (const ws of connections) {
+        if (ws.readyState === WebSocket.OPEN) ws.close();
+      }
+
+      // Wait for scheduleReconnect to fire (5s) and reconnect
+      await vi.waitFor(() => {
+        expect(connectionCount).toBeGreaterThanOrEqual(2);
+      }, { timeout: 8000 });
+
+      // Verify the executor reconnected (gateway state should be ready again)
+      expect(executor.getStatus().gw_state).toBe("ready");
+
+      await executor.close();
+      executor = null;
+      for (const ws of connections) {
+        if (ws.readyState === WebSocket.OPEN) ws.close();
+      }
+      await new Promise<void>((r) => wss.close(() => r()));
+    });
+
+    it("reconnects when only queued tasks exist (the bug fix scenario)", { timeout: 12000 }, async () => {
+      // This is the exact bug that was fixed: scheduleReconnect() previously only
+      // checked executing.size > 0, missing tasks in the queue.
+      //
+      // Scenario to exercise the fix:
+      // 1. maxConcurrent=1, enqueue 2 tasks → task 1 executes, task 2 in queue
+      // 2. Gateway drops → ws.on("close") → scheduleReconnect()
+      // 3. Task 1 timeout fires (1s) → removed from executing, executing.size=0
+      // 4. scheduleReconnect timer fires (5s) → checks condition:
+      //    OLD CODE: executing.size > 0 → false → NO reconnect (BUG!)
+      //    NEW CODE: executing.size > 0 || queue.length > 0 → true → reconnects
+      // 5. After reconnect, queued task 2 should drain and execute
+
+      const port = getRandomPort();
+      let connectionCount = 0;
+      const connections: WebSocket[] = [];
+      const wss = new WebSocketServer({ port });
+
+      wss.on("connection", (ws) => {
+        connectionCount++;
+        connections.push(ws);
+
+        ws.send(JSON.stringify({
+          type: "event",
+          event: "connect.challenge",
+          payload: { nonce: randomUUID(), ts: Date.now() },
+        }));
+
+        ws.on("message", (data: Buffer) => {
+          const msg = JSON.parse(data.toString());
+          if (msg.type === "req" && msg.method === "connect") {
+            ws.send(JSON.stringify({
+              type: "res",
+              id: msg.id,
+              ok: true,
+              payload: {
+                type: "hello-ok",
+                protocol: 3,
+                server: { version: "mock", connId: randomUUID() },
+                features: { methods: ["chat.send"], events: ["chat"] },
+                snapshot: {},
+                policy: {},
+              },
+            }));
+          }
+
+          if (msg.type === "req" && msg.method === "chat.send") {
             const sessionKey = msg.params?.sessionKey as string;
-            // First connection: respond with final immediately so the task completes
-            // and the second queued task needs to drain
-            setTimeout(() => {
-              ws.send(JSON.stringify({
-                type: "event",
-                event: "chat",
-                payload: {
-                  sessionKey,
-                  state: "final",
-                  messages: [{ role: "assistant", content: "Done" }],
-                },
-              }));
-            }, 50);
+            // On reconnection (connection 2+), respond with final so task completes
+            if (connectionCount >= 2) {
+              setTimeout(() => {
+                ws.send(JSON.stringify({
+                  type: "event",
+                  event: "chat",
+                  payload: {
+                    sessionKey,
+                    state: "final",
+                    messages: [{ role: "assistant", content: "Done after reconnect" }],
+                  },
+                }));
+              }, 50);
+            }
+            // First connection: never respond (task stays executing until timeout)
           }
         });
       });
 
       executor = new TaskExecutor({ tasks, gatewayUrl: `ws://127.0.0.1:${port}`, maxConcurrent: 1 });
 
-      // Create 2 tasks. With maxConcurrent=1, only first executes, second stays queued.
+      // Task 1: will execute, then timeout after 1s (short timeout for testing)
       tasks.create(makeTaskRecord({
-        task_id: "reconnect-q-1",
+        task_id: "reconnect-bug-1",
         state: "accepted",
         direction: "inbound",
-        task: { task_type: "test", description: "First task" },
+        task: { task_type: "test", description: "Will timeout", constraints: { max_duration_s: 1 } },
       }));
+      // Task 2: stays in queue (maxConcurrent=1)
       tasks.create(makeTaskRecord({
-        task_id: "reconnect-q-2",
+        task_id: "reconnect-bug-2",
         state: "accepted",
         direction: "inbound",
-        task: { task_type: "test", description: "Second task (queued)" },
+        task: { task_type: "test", description: "Queued task" },
       }));
 
       const completed: string[] = [];
+      const timedOut: string[] = [];
       executor.on("task:completed", (id: string) => completed.push(id));
+      executor.on("task:timeout", (id: string) => timedOut.push(id));
 
       executor.start();
 
-      // Wait for both tasks to complete (first completes, drains queue, second starts and completes)
+      // Wait for task 1 to enter executing
       await vi.waitFor(() => {
-        expect(completed).toContain("reconnect-q-1");
-        expect(completed).toContain("reconnect-q-2");
-      }, { timeout: 3000 });
+        expect(executor!.getStatus().executing).toHaveLength(1);
+      }, { timeout: 2000 });
 
-      // Now test the actual reconnect scenario:
-      // Close the gateway to simulate disconnect
-      for (const ws of connections) ws.close();
+      // Drop gateway → scheduleReconnect() called
+      // At this point: executing.size=1, queue.length=1
+      for (const ws of connections) {
+        if (ws.readyState === WebSocket.OPEN) ws.close();
+      }
       await new Promise((r) => setTimeout(r, 100));
 
-      // Enqueue a new task while gateway is disconnected — it goes into queue
-      tasks.create(makeTaskRecord({
-        task_id: "reconnect-q-3",
-        state: "accepted",
-        direction: "inbound",
-        task: { task_type: "test", description: "After disconnect" },
-      }));
-      executor.enqueue("reconnect-q-3");
+      // Task 1 will timeout after ~1s → executing.size becomes 0
+      // scheduleReconnect timer fires after 5s → should check queue.length > 0
+      // Without the fix: executing.size=0 → skips reconnect → task 2 stuck forever
+      // With the fix: queue.length=1 → reconnects → task 2 executes
 
-      // The gateway is down, task is in queue but not executing.
-      // scheduleReconnect should fire after 5s and reconnect.
-      // Wait for reconnect + task completion (5s reconnect delay + connection time)
       await vi.waitFor(() => {
-        expect(completed).toContain("reconnect-q-3");
-      }, { timeout: 8000 });
+        // Task 2 should complete after reconnect
+        expect(completed).toContain("reconnect-bug-2");
+      }, { timeout: 10000 });
 
-      // Gateway should have received at least 2 connections (initial + reconnect)
+      // Task 1 should have timed out
+      expect(timedOut).toContain("reconnect-bug-1");
+      // Should have at least 2 connections (original + reconnect)
       expect(connectionCount).toBeGreaterThanOrEqual(2);
 
       await executor.close();
