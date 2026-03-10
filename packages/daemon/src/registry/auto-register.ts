@@ -68,23 +68,37 @@ export class AutoRegister extends EventEmitter {
       return;
     }
 
-    // Try agentId, then agentId-2, agentId-3, ... if name already taken by another owner
+    // Build list of base names to try: agentId first, then auto_name as fallback
+    const selfInstance = this.store.getAll().find((i) => i.is_self);
+    const autoName = selfInstance?.auto_name;
+    const bases = [agentId];
+    if (autoName && autoName !== agentId) bases.push(autoName);
+
+    // Try each base with suffixes -1, -2, ... up to MAX_SUFFIX if taken by another owner
     const MAX_SUFFIX = 10;
     let result = null;
-    for (let i = 0; i <= MAX_SUFFIX; i++) {
-      const clawId = i === 0 ? agentId : `${agentId}-${i}`;
-      try {
-        result = await this.client.register({ claw_id: clawId });
-        break;
-      } catch (err) {
-        if (err instanceof RegistryError && err.statusCode === 409 && i < MAX_SUFFIX) {
-          continue; // name taken by another owner, try next suffix
+    outer: for (const base of bases) {
+      for (let i = 0; i <= MAX_SUFFIX; i++) {
+        const clawId = i === 0 ? base : `${base}-${i}`;
+        try {
+          result = await this.client.register({ claw_id: clawId });
+          break outer;
+        } catch (err) {
+          if (err instanceof RegistryError && err.statusCode === 409 && i < MAX_SUFFIX) {
+            continue; // name taken by another owner, try next suffix
+          }
+          if (err instanceof RegistryError && err.statusCode === 409 && i === MAX_SUFFIX) {
+            break; // exhausted suffixes for this base, try next base
+          }
+          this.emit("error", err);
+          return;
         }
-        this.emit("error", err);
-        return;
       }
     }
-    if (!result) return;
+    if (!result) {
+      this.emit("error", new Error(`All candidate names exhausted (bases: ${bases.join(", ")})`));
+      return;
+    }
 
     this.registeredClawName = result.record.name;
 
@@ -95,13 +109,12 @@ export class AutoRegister extends EventEmitter {
       }, HEARTBEAT_INTERVAL_MS);
     }
 
-    // Write claw_name back to the local instance in store
-    const instances = this.store.getAll();
-    const selfInstance = instances.find((i) => i.is_self && i.agent_id === agentId);
-    if (selfInstance) {
-      selfInstance.claw_name = result.record.name;
-      selfInstance.owner_pubkey = result.record.ownerPubkey;
-      this.store.upsert(selfInstance);
+    // Write claw_name back to the local instance in store (re-fetch after possible state change)
+    const registeredSelf = this.store.getAll().find((i) => i.is_self && i.agent_id === agentId);
+    if (registeredSelf) {
+      registeredSelf.claw_name = result.record.name;
+      registeredSelf.owner_pubkey = result.record.ownerPubkey;
+      this.store.upsert(registeredSelf);
     }
 
     this.emit("registered", {

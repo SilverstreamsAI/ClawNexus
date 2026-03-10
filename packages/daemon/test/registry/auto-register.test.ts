@@ -118,6 +118,132 @@ describe("AutoRegister", () => {
     expect(errorHandler).toHaveBeenCalled();
   });
 
+  it("falls back to auto_name when all agentId suffixes are taken (409)", async () => {
+    // 11 attempts for agentId (main, main-1 ... main-10) all return 409
+    const conflict = {
+      ok: false,
+      status: 409,
+      json: async () => ({ error: "Name already taken" }),
+    };
+    for (let i = 0; i <= 10; i++) fetchSpy.mockResolvedValueOnce(conflict);
+
+    // auto_name "olivia" succeeds
+    const record = {
+      id: 99,
+      name: "olivia.id.claw",
+      clawId: "olivia",
+      ownerPubkey: `ed25519:${keys.publicKeyHex}`,
+      tier: "free",
+      capabilities: [],
+      relayHint: null,
+      visibility: "public",
+      registeredAt: new Date().toISOString(),
+      expiresAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => ({ action: "registered", record }),
+    });
+
+    const selfInstance = makeInstance({
+      agent_id: "main",
+      auto_name: "olivia",
+      address: "127.0.0.1",
+      gateway_port: 18789,
+      is_self: true,
+    });
+    store.upsert(selfInstance);
+
+    const client = new RegistryClient(keys, "http://mock:3000");
+    const probe = makeLocalProbe("main");
+    const ar = new AutoRegister(client, store, probe as never, keys);
+
+    const registeredHandler = vi.fn();
+    const errorHandler = vi.fn();
+    ar.on("registered", registeredHandler);
+    ar.on("error", errorHandler);
+
+    await ar.tryRegister();
+
+    expect(errorHandler).not.toHaveBeenCalled();
+    expect(ar.clawName).toBe("olivia.id.claw");
+    expect(registeredHandler).toHaveBeenCalledWith({
+      action: "registered",
+      claw_name: "olivia.id.claw",
+    });
+    // fetch called 11 times (agentId loop) + 1 (olivia) = 12
+    expect(fetchSpy).toHaveBeenCalledTimes(12);
+
+    const updated = store.getByNetworkKey("127.0.0.1", 18789);
+    expect(updated?.claw_name).toBe("olivia.id.claw");
+  });
+
+  it("does not retry auto_name when auto_name equals agentId", async () => {
+    // auto_name === agentId → only one base; all 11 attempts fail → emit error
+    const conflict = {
+      ok: false,
+      status: 409,
+      json: async () => ({ error: "Name already taken" }),
+    };
+    for (let i = 0; i <= 10; i++) fetchSpy.mockResolvedValueOnce(conflict);
+
+    const selfInstance = makeInstance({
+      agent_id: "main",
+      auto_name: "main", // same as agentId
+      address: "127.0.0.1",
+      gateway_port: 18789,
+      is_self: true,
+    });
+    store.upsert(selfInstance);
+
+    const client = new RegistryClient(keys, "http://mock:3000");
+    const probe = makeLocalProbe("main");
+    const ar = new AutoRegister(client, store, probe as never, keys);
+
+    const errorHandler = vi.fn();
+    ar.on("error", errorHandler);
+
+    await ar.tryRegister();
+
+    expect(ar.clawName).toBeNull();
+    expect(errorHandler).toHaveBeenCalledOnce();
+    expect(fetchSpy).toHaveBeenCalledTimes(11); // only one base
+  });
+
+  it("emits error when both agentId and auto_name suffixes are exhausted", async () => {
+    const conflict = {
+      ok: false,
+      status: 409,
+      json: async () => ({ error: "Name already taken" }),
+    };
+    // 11 for "main" + 11 for "olivia" = 22
+    for (let i = 0; i < 22; i++) fetchSpy.mockResolvedValueOnce(conflict);
+
+    const selfInstance = makeInstance({
+      agent_id: "main",
+      auto_name: "olivia",
+      address: "127.0.0.1",
+      gateway_port: 18789,
+      is_self: true,
+    });
+    store.upsert(selfInstance);
+
+    const client = new RegistryClient(keys, "http://mock:3000");
+    const probe = makeLocalProbe("main");
+    const ar = new AutoRegister(client, store, probe as never, keys);
+
+    const errorHandler = vi.fn();
+    ar.on("error", errorHandler);
+
+    await ar.tryRegister();
+
+    expect(ar.clawName).toBeNull();
+    expect(errorHandler).toHaveBeenCalledOnce();
+    expect(fetchSpy).toHaveBeenCalledTimes(22);
+  });
+
   it("start and stop manage timers", async () => {
     const client = new RegistryClient(keys, "http://mock:3000");
     const probe = makeLocalProbe(null);
