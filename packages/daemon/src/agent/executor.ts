@@ -435,7 +435,7 @@ export class TaskExecutor extends EventEmitter {
     if (this.closed || this.reconnectTimer) return;
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
-      if (!this.closed && this.executing.size > 0) {
+      if (!this.closed && (this.executing.size > 0 || this.queue.length > 0)) {
         this.ensureConnection().catch(() => {});
       }
     }, 5000);
