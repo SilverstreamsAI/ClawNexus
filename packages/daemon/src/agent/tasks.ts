@@ -88,6 +88,8 @@ export class TaskManager extends EventEmitter {
     this.tasks.set(record.task_id, record);
     this.scheduleDirtyFlush();
     this.emit("created", record);
+    // Also emit stateChange so listeners (e.g. TaskExecutor) can react to initial state
+    this.emit("stateChange", record, record.state);
   }
 
   updateState(taskId: string, newState: TaskState, extra?: Partial<TaskRecord>): TaskRecord | null {

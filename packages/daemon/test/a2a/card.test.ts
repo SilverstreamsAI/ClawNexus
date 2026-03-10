@@ -51,12 +51,31 @@ describe("buildAgentCard", () => {
     });
   });
 
-  it("includes default skill", () => {
+  it("includes default skill when no skills passed", () => {
     const inst = makeInstance();
     const card = buildAgentCard(inst, VERSION);
     expect(card.skills).toHaveLength(1);
     expect(card.skills[0].id).toBe("general-assistant");
     expect(card.skills[0].tags).toContain("general");
+  });
+
+  it("uses provided skills when passed", () => {
+    const inst = makeInstance();
+    const skills = [
+      { id: "web_search", name: "Web Search", description: "Search the web", tags: ["web"] },
+      { id: "code_run", name: "Code Run", description: "Execute code", tags: ["code"] },
+    ];
+    const card = buildAgentCard(inst, VERSION, skills);
+    expect(card.skills).toHaveLength(2);
+    expect(card.skills[0].id).toBe("web_search");
+    expect(card.skills[1].id).toBe("code_run");
+  });
+
+  it("falls back to default skill when empty array passed", () => {
+    const inst = makeInstance();
+    const card = buildAgentCard(inst, VERSION, []);
+    expect(card.skills).toHaveLength(1);
+    expect(card.skills[0].id).toBe("general-assistant");
   });
 
   it("sets text/plain for input/output modes", () => {

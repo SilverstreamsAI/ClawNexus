@@ -84,8 +84,13 @@ export class RelayConnector extends EventEmitter {
     this.cleanup();
   }
 
+  // Tracks target claw_id for pending JOIN requests
+  private pendingJoins = new Map<string, string>(); // target_claw_id → target_claw_id (for JOINED room_id lookup)
+  private lastJoinTarget: string | null = null;
+
   /** Initiate a connection to a remote claw_id through the relay. */
   join(targetClawId: string): void {
+    this.lastJoinTarget = targetClawId;
     this.send({
       type: "JOIN",
       claw_id: this.options.clawId,
@@ -97,7 +102,10 @@ export class RelayConnector extends EventEmitter {
   /** Send an encrypted message to a peer in a room. */
   sendData(roomId: string, plaintext: string): boolean {
     const room = this.rooms.get(roomId);
-    if (!room || !room.session_key) return false;
+    if (!room || !room.session_key) {
+      console.log(`[clawnexus] [Relay] sendData failed: room=${roomId} exists=${!!room} hasKey=${!!room?.session_key}`);
+      return false;
+    }
 
     const payload = encrypt(room.session_key, plaintext);
     this.send({ type: "DATA", room_id: roomId, payload });
@@ -119,6 +127,7 @@ export class RelayConnector extends EventEmitter {
         room_id: r.room_id,
         peer_claw_id: r.peer_claw_id,
         state: r.state,
+        has_session_key: !!r.session_key,
       })),
     };
   }
@@ -163,7 +172,7 @@ export class RelayConnector extends EventEmitter {
           // We are the initiator — create room entry
           this.rooms.set(msg.room_id, {
             room_id: msg.room_id,
-            peer_claw_id: "", // will be known after key exchange
+            peer_claw_id: this.lastJoinTarget ?? "",
             state: "active",
           });
           // Send our public key

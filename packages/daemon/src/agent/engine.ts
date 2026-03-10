@@ -80,8 +80,8 @@ export class PolicyEngine {
     // 3. Whitelist check — whitelisted peers bypass trust/capability checks
     const isWhitelisted = this.config.access_control.whitelist.includes(peer);
 
-    // 4. Trust score check (skip for whitelisted)
-    if (!isWhitelisted && peerTrustScore < this.config.trust_threshold) {
+    // 4. Trust score check (skip for whitelisted and auto mode)
+    if (this.config.mode !== "auto" && !isWhitelisted && peerTrustScore < this.config.trust_threshold) {
       return { result: "reject", reason: "trust_insufficient", details: `Score ${peerTrustScore} < threshold ${this.config.trust_threshold}` };
     }
 

@@ -132,4 +132,79 @@ describe("AgentRouter — sendReport & sendHeartbeat", () => {
       expect(envelope.payload.progress_pct).toBeUndefined();
     });
   });
+
+  describe("handleQuery with SkillsRegistry", () => {
+    it("responds with capabilities from SkillsRegistry", () => {
+      const connector = createMockConnector();
+      const mockRegistry = {
+        getCapabilities: () => [
+          { service_type: "web_search", description: "Search the web" },
+          { service_type: "code_run", description: "Run code" },
+        ],
+      };
+
+      const router = new AgentRouter({
+        connector: connector as any,
+        engine,
+        tasks,
+        localClawId: "me.id.claw",
+        skillsRegistry: mockRegistry as any,
+      });
+      router.start();
+
+      // Simulate an incoming query message via the connector
+      const queryEnvelope = JSON.stringify({
+        protocol: "clawnexus-agent",
+        version: "1.0",
+        message_id: "q-1",
+        from: "peer.id.claw",
+        to: "me.id.claw",
+        type: "query",
+        payload: { query_type: "capabilities" },
+        timestamp: new Date().toISOString(),
+        ttl: 300,
+      });
+      connector.emit("data", "room-1", queryEnvelope);
+
+      expect(connector.sent).toHaveLength(1);
+      const reply = JSON.parse(connector.sent[0].data);
+      expect(reply.type).toBe("capability");
+      expect(reply.payload.capabilities).toHaveLength(2);
+      expect(reply.payload.capabilities[0].service_type).toBe("web_search");
+      expect(reply.payload.capabilities[1].service_type).toBe("code_run");
+
+      router.stop();
+    });
+
+    it("responds with empty capabilities when no SkillsRegistry", () => {
+      const connector = createMockConnector();
+      const router = new AgentRouter({
+        connector: connector as any,
+        engine,
+        tasks,
+        localClawId: "me.id.claw",
+      });
+      router.start();
+
+      const queryEnvelope = JSON.stringify({
+        protocol: "clawnexus-agent",
+        version: "1.0",
+        message_id: "q-2",
+        from: "peer.id.claw",
+        to: "me.id.claw",
+        type: "query",
+        payload: { query_type: "capabilities" },
+        timestamp: new Date().toISOString(),
+        ttl: 300,
+      });
+      connector.emit("data", "room-1", queryEnvelope);
+
+      expect(connector.sent).toHaveLength(1);
+      const reply = JSON.parse(connector.sent[0].data);
+      expect(reply.type).toBe("capability");
+      expect(reply.payload.capabilities).toEqual([]);
+
+      router.stop();
+    });
+  });
 });

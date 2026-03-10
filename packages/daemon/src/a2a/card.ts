@@ -41,6 +41,7 @@ const DEFAULT_SKILL: AgentSkill = {
 export function buildAgentCard(
   instance: ClawInstance,
   daemonVersion: string,
+  skills?: AgentSkill[],
 ): AgentCard {
   return {
     name: instance.alias ?? instance.auto_name,
@@ -52,7 +53,7 @@ export function buildAgentCard(
       pushNotifications: false,
       stateTransitionHistory: false,
     },
-    skills: [DEFAULT_SKILL],
+    skills: skills && skills.length > 0 ? skills : [DEFAULT_SKILL],
     defaultInputModes: ["text/plain"],
     defaultOutputModes: ["text/plain"],
     provider: {

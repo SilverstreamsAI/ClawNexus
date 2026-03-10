@@ -25,6 +25,7 @@ import { AutoRegister } from "../registry/auto-register.js";
 import { RemoteDiscovery } from "../registry/discovery.js";
 import { RelayConnector } from "../relay/connector.js";
 import { buildAgentCard } from "../a2a/card.js";
+import { SkillsRegistry } from "../agent/services.js";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 
@@ -88,13 +89,35 @@ export interface AgentDeps {
   tasks: TaskManager;
   getRouter: () => AgentRouter | null;
   getExecutor: () => TaskExecutor | null;
+  skillsRegistry?: SkillsRegistry;
 }
 
 export function registerAgentRoutes(
   app: FastifyInstance,
   deps: AgentDeps,
 ): void {
-  const { engine, tasks, getRouter, getExecutor } = deps;
+  const { engine, tasks, getRouter, getExecutor, skillsRegistry } = deps;
+
+  // --- Skills ---
+
+  app.get("/agent/skills", async () => {
+    if (!skillsRegistry) {
+      return { skills: [], status: { source: "not_initialized" as const } };
+    }
+    return { skills: skillsRegistry.getSkills(), status: skillsRegistry.getStatus() };
+  });
+
+  app.post("/agent/skills/refresh", async () => {
+    if (!skillsRegistry) {
+      return { status: "error", message: "Skills registry not initialized" };
+    }
+    const ok = await skillsRegistry.refresh();
+    return {
+      status: ok ? "ok" : "error",
+      skills: skillsRegistry.getSkills(),
+      ...skillsRegistry.getStatus(),
+    };
+  });
 
   // --- Executor status ---
 
@@ -426,6 +449,7 @@ export function registerA2aRoutes(
   app: FastifyInstance,
   store: RegistryStore,
   daemonVersion: string,
+  skillsRegistry?: SkillsRegistry,
 ): void {
   // A2A standard well-known endpoint — returns card for the local (is_self) instance
   app.get("/.well-known/agent-card.json", async (_request, reply) => {
@@ -433,13 +457,14 @@ export function registerA2aRoutes(
     if (!self) {
       return reply.status(404).send({ error: "No local instance discovered" });
     }
-    return buildAgentCard(self, daemonVersion);
+    return buildAgentCard(self, daemonVersion, skillsRegistry?.getSkills());
   });
 
   // All instances as Agent Cards
   app.get("/a2a/cards", async () => {
     const instances = store.getAll();
-    const cards = instances.map((i) => buildAgentCard(i, daemonVersion));
+    const skills = skillsRegistry?.getSkills();
+    const cards = instances.map((i) => buildAgentCard(i, daemonVersion, skills));
     return { count: cards.length, cards };
   });
 
@@ -451,7 +476,7 @@ export function registerA2aRoutes(
       if (!inst) {
         return reply.status(404).send({ error: "Instance not found" });
       }
-      return buildAgentCard(inst, daemonVersion);
+      return buildAgentCard(inst, daemonVersion, skillsRegistry?.getSkills());
     },
   );
 }
@@ -474,6 +499,7 @@ export interface DaemonHandle {
   engine: PolicyEngine;
   tasks: TaskManager;
   getRouter: () => AgentRouter | null;
+  skillsRegistry: SkillsRegistry;
   registryClient: RegistryClient | null;
   autoRegister: AutoRegister | null;
   remoteDiscovery: RemoteDiscovery | null;
@@ -525,6 +551,9 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     tasks: taskManager,
     maxConcurrent: engine.getConfig().max_concurrent_tasks,
   });
+
+  // 6c. Create SkillsRegistry
+  const skillsRegistry = new SkillsRegistry();
 
   // 7. Detect WireGuard interfaces
   const wgInfo: WireGuardInfo = await detectWireGuard();
@@ -589,6 +618,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     tasks: taskManager,
     getRouter: () => agentRouter,
     getExecutor: () => taskExecutor,
+    skillsRegistry,
   });
 
   // Diagnostics routes
@@ -606,7 +636,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
   const daemonPkg = JSON.parse(
     readFileSync(join(__dirname, "../../package.json"), "utf-8"),
   ) as { version: string };
-  registerA2aRoutes(app, store, daemonPkg.version);
+  registerA2aRoutes(app, store, daemonPkg.version, skillsRegistry);
 
   // 9. Initialize Registry integration (non-fatal — LAN must work without it)
   let identityKeys: IdentityKeys | null = null;
@@ -620,6 +650,8 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
   localProbe.on("local:discovered", (instance) => {
     app.log.info({ agent_id: instance.agent_id }, "Local OpenClaw instance discovered");
     broadcast.sendAnnounce();
+    // Start skills registry once we know the local Gateway is available
+    skillsRegistry.start();
   });
 
   localProbe.on("local:unavailable", () => {
@@ -640,11 +672,13 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
       identityKeys,
     });
 
+    let relayInitializing = false;
     autoRegister.on("registered", async (info) => {
       console.log(`[clawnexus] [Registry] Registered as ${info.claw_name} (${info.action})`);
 
-      // Initialize relay connector after successful registration
-      if (!connector && registryClient && info.claw_name) {
+      // Initialize relay connector after successful registration (once only)
+      if (!connector && !relayInitializing && registryClient && info.claw_name) {
+        relayInitializing = true;
         try {
           const tokenResult = await registryClient.getToken(info.claw_name);
           console.log(`[clawnexus] [Relay] Got auth token, relay_hint: ${tokenResult.relay_hint}`);
@@ -676,14 +710,24 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
           newConnector.connect();
           setConnector(newConnector);
 
-          // Start token refresh — every 4 minutes (token expires in 5 min)
+          // Start token refresh — every 55 minutes (relay keeps WebSocket alive after auth,
+          // only need to refresh for reconnection scenarios)
           if (tokenRefreshTimer) clearInterval(tokenRefreshTimer);
           tokenRefreshTimer = setInterval(async () => {
             if (!registryClient || !autoRegister?.clawName) return;
             try {
               const fresh = await registryClient.getToken(autoRegister.clawName);
-              // Reconnect with fresh token
-              connector?.disconnect();
+
+              // Save peer claw_ids from existing rooms before reconnecting
+              const previousPeers: string[] = [];
+              const oldConnector = connector;
+              if (oldConnector) {
+                for (const room of oldConnector.getStatus().rooms) {
+                  if (room.peer_claw_id) previousPeers.push(room.peer_claw_id);
+                }
+              }
+
+              // Connect new first, then disconnect old (relay server handles replacement)
               const refreshed = new RelayConnector({
                 relayUrl: process.env.CLAWNEXUS_RELAY_URL ?? `wss://${fresh.relay_hint}/relay`,
                 clawId: autoRegister.clawName,
@@ -692,6 +736,15 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
               });
               refreshed.on("registered", (clawId: string) => {
                 console.log(`[clawnexus] [Relay] Reconnected (token refresh) as ${clawId}`);
+                // Old connector is now replaced on server side — disconnect it locally
+                if (oldConnector && oldConnector !== refreshed) {
+                  oldConnector.disconnect();
+                }
+                // Re-join rooms with previous peers
+                for (const peerId of previousPeers) {
+                  console.log(`[clawnexus] [Relay] Re-joining peer ${peerId} after token refresh`);
+                  refreshed.join(peerId);
+                }
               });
               refreshed.on("relay_error", (code: string, message: string) => {
                 console.log(`[clawnexus] [Relay] Error: ${code} — ${message}`);
@@ -701,7 +754,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
             } catch (err) {
               console.log(`[clawnexus] [Relay] Token refresh failed (non-fatal): ${err}`);
             }
-          }, 4 * 60 * 1000);
+          }, 55 * 60 * 1000);
         } catch (err) {
           console.log(`[clawnexus] [Relay] Failed to initialize (non-fatal): ${err}`);
         }
@@ -750,6 +803,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
   // Graceful shutdown hook
   app.addHook("onClose", async () => {
     if (tokenRefreshTimer) clearInterval(tokenRefreshTimer);
+    skillsRegistry.stop();
     await taskExecutor.close();
     autoRegister?.stop();
     agentRouter?.stop();
@@ -776,12 +830,17 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
         engine,
         tasks: taskManager,
         localClawId: c.getStatus().claw_id ?? "",
+        skillsRegistry,
       });
       agentRouter.start();
       app.log.info("Layer B agent router started");
 
       // Give executor the router reference so it can send reports
       taskExecutor.setRouter(agentRouter);
+    } else {
+      // Update existing router with new connector (e.g. after token refresh)
+      agentRouter.setConnector(c);
+      app.log.info("Layer B agent router connector updated");
     }
   };
 
@@ -798,6 +857,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     engine,
     tasks: taskManager,
     getRouter: () => agentRouter,
+    skillsRegistry,
     registryClient,
     autoRegister,
     remoteDiscovery,

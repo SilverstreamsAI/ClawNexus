@@ -4,25 +4,22 @@
 
 import { EventEmitter } from "node:events";
 import { WebSocket } from "ws";
-import * as fs from "node:fs";
-import * as path from "node:path";
-import * as os from "node:os";
+import { randomUUID } from "node:crypto";
 import type { TaskManager } from "./tasks.js";
 import type { AgentRouter } from "./router.js";
 import type { TaskRecord } from "./types.js";
+import { connectGateway, type GatewayConnection } from "./gateway.js";
 
-const CLAWNEXUS_DIR = path.join(os.homedir(), ".clawnexus");
-const DEVICE_TOKEN_PATH = path.join(CLAWNEXUS_DIR, "oc-device-token");
 const DEFAULT_GW_URL = "ws://127.0.0.1:18789";
 const HEARTBEAT_INTERVAL_MS = 15_000;
 const DEFAULT_MAX_CONCURRENT = 3;
-const CONNECT_TIMEOUT_MS = 10_000;
 
-type GwState = "disconnected" | "connecting" | "handshaking" | "ready" | "error";
+type GwState = "disconnected" | "connecting" | "ready" | "error";
 
 interface ExecutingTask {
   taskId: string;
   sessionKey: string;
+  requestId: string;
   heartbeatTimer: ReturnType<typeof setInterval> | null;
   timeoutTimer: ReturnType<typeof setTimeout> | null;
   aborted: boolean;
@@ -40,9 +37,8 @@ export class TaskExecutor extends EventEmitter {
   private readonly maxConcurrent: number;
 
   private router: AgentRouter | null = null;
-  private ws: WebSocket | null = null;
+  private gwConn: GatewayConnection | null = null;
   private gwState: GwState = "disconnected";
-  private deviceToken: string | null = null;
 
   // Queue of task IDs waiting to execute
   private queue: string[] = [];
@@ -59,7 +55,6 @@ export class TaskExecutor extends EventEmitter {
     this.tasks = opts.tasks;
     this.gatewayUrl = opts.gatewayUrl ?? DEFAULT_GW_URL;
     this.maxConcurrent = opts.maxConcurrent ?? DEFAULT_MAX_CONCURRENT;
-    this.loadDeviceToken();
   }
 
   setRouter(router: AgentRouter): void {
@@ -127,19 +122,9 @@ export class TaskExecutor extends EventEmitter {
     this.executing.clear();
     this.queue = [];
 
-    if (this.ws) {
-      const ws = this.ws;
-      this.ws = null;
-      // Remove all listeners except error to prevent uncaught exceptions
-      ws.removeAllListeners("open");
-      ws.removeAllListeners("message");
-      ws.removeAllListeners("close");
-      // Keep a no-op error handler to suppress uncaught ECONNREFUSED
-      ws.removeAllListeners("error");
-      ws.on("error", () => {});
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close();
-      }
+    if (this.gwConn) {
+      this.gwConn.close();
+      this.gwConn = null;
     }
     this.gwState = "disconnected";
   }
@@ -147,10 +132,10 @@ export class TaskExecutor extends EventEmitter {
   // --- Gateway Connection ---
 
   private async ensureConnection(): Promise<boolean> {
-    if (this.gwState === "ready" && this.ws?.readyState === WebSocket.OPEN) {
+    if (this.gwState === "ready" && this.gwConn?.ws?.readyState === WebSocket.OPEN) {
       return true;
     }
-    if (this.gwState === "connecting" || this.gwState === "handshaking") {
+    if (this.gwState === "connecting") {
       // Already in progress — wait
       return new Promise((resolve) => {
         const onReady = () => { cleanup(); resolve(true); };
@@ -163,109 +148,87 @@ export class TaskExecutor extends EventEmitter {
         this.once("gw:error", onError);
       });
     }
-    return this.connectGateway();
+    return this.connectGatewayV3();
   }
 
-  private connectGateway(): Promise<boolean> {
-    return new Promise((resolve) => {
-      if (this.closed) { resolve(false); return; }
+  private async connectGatewayV3(): Promise<boolean> {
+    if (this.closed) return false;
 
-      this.gwState = "connecting";
-      const connectTimeout = setTimeout(() => {
-        this.gwState = "error";
-        this.emit("gw:error", "Connection timeout");
-        if (ws.readyState === WebSocket.CONNECTING) ws.close();
-        resolve(false);
-      }, CONNECT_TIMEOUT_MS);
-
-      const ws = new WebSocket(this.gatewayUrl);
-      this.ws = ws;
-
-      ws.on("open", () => {
-        this.gwState = "handshaking";
+    this.gwState = "connecting";
+    try {
+      const conn = await connectGateway({
+        gatewayUrl: this.gatewayUrl,
+        scopes: ["operator.read", "operator.write"],
       });
 
-      ws.on("message", (data: Buffer) => {
-        const msg = JSON.parse(data.toString());
-        this.handleGwMessage(msg, ws, connectTimeout, resolve);
+      this.gwConn = conn;
+      this.gwState = "ready";
+
+      // Set up event listener for runtime messages
+      conn.ws.on("message", (data: Buffer) => {
+        let msg: Record<string, unknown>;
+        try {
+          msg = JSON.parse(data.toString());
+        } catch {
+          return;
+        }
+        this.handleGwMessage(msg);
       });
 
-      ws.on("error", (err: Error) => {
-        clearTimeout(connectTimeout);
-        console.log(`[clawnexus] [Executor] Gateway connection error: ${err.message}`);
-        this.gwState = "error";
-        this.emit("gw:error", err.message);
-        resolve(false);
-      });
-
-      ws.on("close", () => {
-        clearTimeout(connectTimeout);
+      conn.ws.on("close", () => {
         const wasReady = this.gwState === "ready";
         this.gwState = "disconnected";
-        this.ws = null;
+        this.gwConn = null;
         if (wasReady) {
           console.log("[clawnexus] [Executor] Gateway connection closed");
           this.scheduleReconnect();
         }
       });
-    });
-  }
 
-  private handleGwMessage(
-    msg: Record<string, unknown>,
-    ws: WebSocket,
-    connectTimeout: ReturnType<typeof setTimeout>,
-    resolveConnect: ((ok: boolean) => void) | null,
-  ): void {
-    const action = msg.action as string | undefined;
-
-    // Handshake: connect.challenge → connect → hello-ok
-    if (action === "event" && msg.event === "connect.challenge") {
-      const authToken = process.env.OPENCLAW_GATEWAY_TOKEN ?? this.deviceToken ?? undefined;
-      const connectMsg: Record<string, unknown> = {
-        action: "req",
-        method: "connect",
-        role: "operator",
-        scopes: ["read", "write"],
-      };
-      if (authToken) {
-        connectMsg.token = authToken;
-      }
-      ws.send(JSON.stringify(connectMsg));
-      return;
-    }
-
-    if (action === "res" && msg.response === "hello-ok") {
-      clearTimeout(connectTimeout);
-      this.gwState = "ready";
-
-      // Persist deviceToken if returned
-      if (msg.deviceToken && typeof msg.deviceToken === "string") {
-        this.deviceToken = msg.deviceToken;
-        this.saveDeviceToken(msg.deviceToken);
-      }
+      conn.ws.on("error", (err: Error) => {
+        console.log(`[clawnexus] [Executor] Gateway error: ${err.message}`);
+      });
 
       console.log("[clawnexus] [Executor] Gateway connection ready");
       this.emit("gw:ready");
-      if (resolveConnect) resolveConnect(true);
-      return;
+      return true;
+    } catch (err) {
+      console.log(`[clawnexus] [Executor] Gateway connection failed: ${(err as Error).message}`);
+      this.gwState = "error";
+      this.emit("gw:error", (err as Error).message);
+      return false;
     }
+  }
 
-    // Runtime messages — route to task handlers
-    if (action === "event") {
+  private handleGwMessage(msg: Record<string, unknown>): void {
+    const type = msg.type as string | undefined;
+
+    // Event frame
+    if (type === "event") {
       this.handleGwEvent(msg);
-    } else if (action === "res" && msg.response === "lifecycle:error") {
-      const sessionKey = msg.sessionKey as string | undefined;
-      if (sessionKey) {
-        this.handleTaskError(sessionKey, (msg.message as string) ?? "Gateway lifecycle error");
+    }
+    // Error response
+    else if (type === "res" && msg.ok === false) {
+      const error = msg.error as Record<string, unknown> | undefined;
+      const id = msg.id as string | undefined;
+      if (id) {
+        // Find which task sent this request
+        for (const [, exec] of this.executing) {
+          if (exec.requestId === id) {
+            this.handleTaskError(exec.sessionKey, (error?.message as string) ?? "Gateway request error");
+            break;
+          }
+        }
       }
     }
   }
 
   private handleGwEvent(msg: Record<string, unknown>): void {
     const event = msg.event as string;
-    const sessionKey = msg.sessionKey as string | undefined;
+    const payload = msg.payload as Record<string, unknown> | undefined;
 
+    // Chat events use the session key from payload or top-level
+    const sessionKey = (payload?.sessionKey as string) ?? (msg.sessionKey as string);
     if (!sessionKey) return;
 
     // Find the executing task for this sessionKey
@@ -278,8 +241,8 @@ export class TaskExecutor extends EventEmitter {
     }
     if (!execEntry) return;
 
-    if (event === "chat") {
-      const state = (msg.data as Record<string, unknown>)?.state as string | undefined;
+    if (event === "chat" || event === "chat.update") {
+      const state = (payload?.state as string) ?? (msg.data as Record<string, unknown>)?.state as string | undefined;
       if (state === "final") {
         this.handleTaskFinal(execEntry, msg);
       }
@@ -289,8 +252,10 @@ export class TaskExecutor extends EventEmitter {
   private handleTaskFinal(exec: ExecutingTask, msg: Record<string, unknown>): void {
     this.clearTaskTimers(exec);
 
+    const payload = msg.payload as Record<string, unknown> | undefined;
+    const data = payload ?? (msg.data as Record<string, unknown> | undefined);
+
     // Extract the assistant's reply from the final message
-    const data = msg.data as Record<string, unknown> | undefined;
     const messages = data?.messages as Array<Record<string, unknown>> | undefined;
     let result = "";
 
@@ -369,7 +334,7 @@ export class TaskExecutor extends EventEmitter {
 
   private async executeTask(task: TaskRecord): Promise<void> {
     const connected = await this.ensureConnection();
-    if (!connected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    if (!connected || !this.gwConn || this.gwConn.ws.readyState !== WebSocket.OPEN) {
       console.log(`[clawnexus] [Executor] Cannot execute task ${task.task_id}: gateway not available`);
       this.tasks.updateState(task.task_id, "failed", { error: "OpenClaw Gateway not available" });
       if (task.room_id && task.peer_claw_id && this.router) {
@@ -385,23 +350,29 @@ export class TaskExecutor extends EventEmitter {
     // Transition to executing
     this.tasks.updateState(task.task_id, "executing");
 
+    const requestId = randomUUID();
     const exec: ExecutingTask = {
       taskId: task.task_id,
       sessionKey,
+      requestId,
       heartbeatTimer: null,
       timeoutTimer: null,
       aborted: false,
     };
     this.executing.set(task.task_id, exec);
 
-    // Send chat message to OpenClaw
+    // Send chat message to OpenClaw (v3 protocol frame format)
     const chatMsg = {
-      action: "req",
+      type: "req",
+      id: requestId,
       method: "chat.send",
-      sessionKey,
-      message,
+      params: {
+        sessionKey,
+        message,
+        idempotencyKey: requestId,
+      },
     };
-    this.ws.send(JSON.stringify(chatMsg));
+    this.gwConn.ws.send(JSON.stringify(chatMsg));
 
     // Start heartbeat (sends Layer B heartbeat to proposer every 15s)
     if (task.room_id && task.peer_claw_id && this.router) {
@@ -419,11 +390,12 @@ export class TaskExecutor extends EventEmitter {
       exec.aborted = true;
 
       // Abort the chat
-      if (this.ws?.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify({
-          action: "req",
+      if (this.gwConn?.ws?.readyState === WebSocket.OPEN) {
+        this.gwConn.ws.send(JSON.stringify({
+          type: "req",
+          id: randomUUID(),
           method: "chat.abort",
-          sessionKey,
+          params: { sessionKey },
         }));
       }
 
@@ -464,24 +436,5 @@ export class TaskExecutor extends EventEmitter {
         this.ensureConnection().catch(() => {});
       }
     }, 5000);
-  }
-
-  private loadDeviceToken(): void {
-    try {
-      if (fs.existsSync(DEVICE_TOKEN_PATH)) {
-        this.deviceToken = fs.readFileSync(DEVICE_TOKEN_PATH, "utf-8").trim();
-      }
-    } catch {
-      // Ignore
-    }
-  }
-
-  private saveDeviceToken(token: string): void {
-    try {
-      fs.mkdirSync(CLAWNEXUS_DIR, { recursive: true });
-      fs.writeFileSync(DEVICE_TOKEN_PATH, token, "utf-8");
-    } catch {
-      // Non-fatal
-    }
   }
 }

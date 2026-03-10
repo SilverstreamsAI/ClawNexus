@@ -13,6 +13,7 @@ import type {
   PolicyDecision,
 } from "./types.js";
 import type { ReportPayload, HeartbeatPayload } from "./types.js";
+import type { SkillsRegistry } from "./services.js";
 import { parseEnvelope, createEnvelope, isExpired, ProtocolError } from "./protocol.js";
 import { randomUUID } from "node:crypto";
 
@@ -21,13 +22,15 @@ export interface AgentRouterOptions {
   engine: PolicyEngine;
   tasks: TaskManager;
   localClawId: string;
+  skillsRegistry?: SkillsRegistry;
 }
 
 export class AgentRouter extends EventEmitter {
-  private readonly connector: RelayConnector;
+  private connector: RelayConnector;
   private readonly engine: PolicyEngine;
   private readonly tasks: TaskManager;
   private readonly localClawId: string;
+  private readonly skillsRegistry: SkillsRegistry | null;
   private dataHandler: ((roomId: string, plaintext: string) => void) | null = null;
   // Map queued message_id → { envelope, roomId } for manual approve/deny
   private inbox = new Map<string, { envelope: LayerBEnvelope; roomId: string }>();
@@ -38,6 +41,7 @@ export class AgentRouter extends EventEmitter {
     this.engine = opts.engine;
     this.tasks = opts.tasks;
     this.localClawId = opts.localClawId;
+    this.skillsRegistry = opts.skillsRegistry ?? null;
   }
 
   start(): void {
@@ -51,6 +55,19 @@ export class AgentRouter extends EventEmitter {
     if (this.dataHandler) {
       this.connector.off("data", this.dataHandler);
       this.dataHandler = null;
+    }
+  }
+
+  /** Replace the relay connector (e.g. after token refresh reconnection) */
+  setConnector(c: RelayConnector): void {
+    // Unbind from old connector
+    if (this.dataHandler) {
+      this.connector.off("data", this.dataHandler);
+    }
+    this.connector = c;
+    // Re-bind to new connector
+    if (this.dataHandler) {
+      this.connector.on("data", this.dataHandler);
     }
   }
 
@@ -208,6 +225,7 @@ export class AgentRouter extends EventEmitter {
 
   private handleProposal(envelope: LayerBEnvelope, roomId: string): void {
     const decision = this.engine.evaluate(envelope);
+    console.log(`[clawnexus] [Router] Proposal from ${envelope.from}: ${decision.result}`);
     this.emit("decision", envelope, decision, roomId);
 
     switch (decision.result) {
@@ -268,12 +286,14 @@ export class AgentRouter extends EventEmitter {
   }
 
   private handleQuery(envelope: LayerBEnvelope, roomId: string): void {
-    // Respond with capability info (placeholder — actual capabilities from services.ts in future)
+    const capabilities = this.skillsRegistry
+      ? this.skillsRegistry.getCapabilities()
+      : [];
     const reply = createEnvelope(
       this.localClawId,
       envelope.from,
       "capability",
-      { capabilities: [] },
+      { capabilities },
       { in_reply_to: envelope.message_id },
     );
     this.sendMessage(roomId, reply);
