@@ -30,7 +30,7 @@ const TASK_TIMEOUT_S = 600; // 10 minutes default
 // Valid state transitions
 const TRANSITIONS: Record<TaskState, TaskState[]> = {
   pending:   ["accepted", "rejected", "cancelled", "timeout"],
-  accepted:  ["executing", "cancelled", "timeout"],
+  accepted:  ["executing", "completed", "failed", "cancelled", "timeout"],
   executing: ["completed", "failed", "cancelled", "timeout"],
   completed: [],
   failed:    [],

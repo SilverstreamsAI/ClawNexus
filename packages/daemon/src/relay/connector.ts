@@ -30,9 +30,14 @@ export class RelayConnector extends EventEmitter {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private closed = false;
 
-  constructor(private readonly options: RelayConnectorOptions) {
+  constructor(private options: RelayConnectorOptions) {
     super();
     this.keyPair = generateKeyPair();
+  }
+
+  /** Update the auth token (e.g. after token refresh). */
+  updateAuthToken(token: string): void {
+    this.options = { ...this.options, authToken: token };
   }
 
   /** Connect to the relay and REGISTER this claw_id. */

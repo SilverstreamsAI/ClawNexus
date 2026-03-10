@@ -14,8 +14,9 @@ function getRandomPort(): number {
 }
 
 /**
- * Creates a mock OpenClaw Gateway WebSocket server that performs the handshake
- * and optionally responds to chat.send with a final event.
+ * Creates a mock OpenClaw Gateway (v3 protocol) WebSocket server.
+ * Performs the connect.challenge → connect → res(ok) handshake,
+ * then optionally responds to chat.send with a final event.
  */
 function createMockGateway(port: number, opts: {
   autoFinal?: boolean;
@@ -29,43 +30,53 @@ function createMockGateway(port: number, opts: {
   wss.on("connection", (ws) => {
     connections.push(ws);
 
-    // Step 1: Send connect.challenge
+    // v3: Send connect.challenge event
     ws.send(JSON.stringify({
-      action: "event",
+      type: "event",
       event: "connect.challenge",
+      payload: { nonce: "test-nonce-123" },
     }));
 
     ws.on("message", (data: Buffer) => {
       const msg = JSON.parse(data.toString());
 
-      if (msg.action === "req" && msg.method === "connect") {
+      if (msg.type === "req" && msg.method === "connect") {
         if (opts.rejectConnect) {
-          ws.send(JSON.stringify({ action: "res", response: "error", message: "Rejected" }));
+          ws.send(JSON.stringify({
+            type: "res",
+            id: msg.id,
+            ok: false,
+            error: { code: "rejected", message: "Rejected" },
+          }));
           ws.close();
           return;
         }
-        // Step 2: Send hello-ok
+        // v3: Send success response with ok=true
         ws.send(JSON.stringify({
-          action: "res",
-          response: "hello-ok",
-          deviceToken: "test-device-token-123",
+          type: "res",
+          id: msg.id,
+          ok: true,
+          payload: {
+            auth: { deviceToken: "test-device-token-123" },
+          },
         }));
       }
 
-      if (msg.action === "req" && msg.method === "chat.send") {
-        const sessionKey = msg.sessionKey as string;
+      if (msg.type === "req" && msg.method === "chat.send") {
+        const sessionKey = msg.params?.sessionKey as string;
 
         if (opts.autoFinal !== false) {
           const delay = opts.finalDelay ?? 50;
           setTimeout(() => {
+            // v3: Send chat event with payload
             ws.send(JSON.stringify({
-              action: "event",
+              type: "event",
               event: "chat",
-              sessionKey,
-              data: {
+              payload: {
+                sessionKey,
                 state: "final",
                 messages: [
-                  { role: "user", content: msg.message },
+                  { role: "user", content: msg.params?.message },
                   { role: "assistant", content: opts.finalContent ?? "Task completed successfully" },
                 ],
               },
@@ -74,7 +85,7 @@ function createMockGateway(port: number, opts: {
         }
       }
 
-      if (msg.action === "req" && msg.method === "chat.abort") {
+      if (msg.type === "req" && msg.method === "chat.abort") {
         // Acknowledge abort silently
       }
     });
@@ -184,7 +195,6 @@ describe("TaskExecutor", () => {
       // Task should have been picked up and moved to executing or completed
       const task = tasks.getById("pre-existing");
       expect(task).toBeUndefined(); // completed tasks are archived
-      // OR it's in a terminal state (completed gets archived immediately)
 
     });
 
@@ -346,8 +356,6 @@ describe("TaskExecutor", () => {
       }));
       executor.start();
 
-      // Wait long enough for at least one heartbeat (15s interval, but we can't wait that long in tests)
-      // Instead, verify the heartbeat timer was set up by checking executor status
       await new Promise((r) => setTimeout(r, 500));
 
       const status = executor.getStatus();
@@ -358,35 +366,45 @@ describe("TaskExecutor", () => {
 
     it("handles task with input data", async () => {
       let receivedMessage = "";
-      gateway = createMockGateway(gwPort, { autoFinal: true, finalContent: "Done" });
+      const port = getRandomPort();
+      const connections: WebSocket[] = [];
+      const wss = new WebSocketServer({ port });
 
-      // Intercept the chat.send to see what message was sent
-      const origConnections = gateway.connections;
-      const wss = gateway.wss;
-      wss.removeAllListeners("connection");
       wss.on("connection", (ws) => {
-        origConnections.push(ws);
-        ws.send(JSON.stringify({ action: "event", event: "connect.challenge" }));
+        connections.push(ws);
+        ws.send(JSON.stringify({
+          type: "event",
+          event: "connect.challenge",
+          payload: { nonce: "test-nonce" },
+        }));
         ws.on("message", (data: Buffer) => {
           const msg = JSON.parse(data.toString());
-          if (msg.action === "req" && msg.method === "connect") {
-            ws.send(JSON.stringify({ action: "res", response: "hello-ok" }));
+          if (msg.type === "req" && msg.method === "connect") {
+            ws.send(JSON.stringify({
+              type: "res",
+              id: msg.id,
+              ok: true,
+              payload: {},
+            }));
           }
-          if (msg.action === "req" && msg.method === "chat.send") {
-            receivedMessage = msg.message;
+          if (msg.type === "req" && msg.method === "chat.send") {
+            receivedMessage = msg.params?.message;
             setTimeout(() => {
               ws.send(JSON.stringify({
-                action: "event",
+                type: "event",
                 event: "chat",
-                sessionKey: msg.sessionKey,
-                data: { state: "final", messages: [{ role: "assistant", content: "Done" }] },
+                payload: {
+                  sessionKey: msg.params?.sessionKey,
+                  state: "final",
+                  messages: [{ role: "assistant", content: "Done" }],
+                },
               }));
             }, 50);
           }
         });
       });
 
-      executor = new TaskExecutor({ tasks, gatewayUrl: `ws://127.0.0.1:${gwPort}` });
+      executor = new TaskExecutor({ tasks, gatewayUrl: `ws://127.0.0.1:${port}` });
 
       tasks.create(makeTaskRecord({
         task_id: "input-1",
@@ -406,6 +424,10 @@ describe("TaskExecutor", () => {
       expect(receivedMessage).toContain("Calculate this");
       expect(receivedMessage).toContain('"x":10');
 
+      await executor.close();
+      executor = null;
+      for (const ws of connections) ws.close();
+      await new Promise<void>((r) => wss.close(() => r()));
     });
   });
 
@@ -483,27 +505,39 @@ describe("TaskExecutor", () => {
   });
 
   describe("error handling", () => {
-    it("handles lifecycle:error from gateway", async () => {
+    it("handles chat error state from gateway", async () => {
       const port = getRandomPort();
       const connections: WebSocket[] = [];
       const wss = new WebSocketServer({ port });
 
       wss.on("connection", (ws) => {
         connections.push(ws);
-        ws.send(JSON.stringify({ action: "event", event: "connect.challenge" }));
+        ws.send(JSON.stringify({
+          type: "event",
+          event: "connect.challenge",
+          payload: { nonce: "test-nonce" },
+        }));
         ws.on("message", (data: Buffer) => {
           const msg = JSON.parse(data.toString());
-          if (msg.action === "req" && msg.method === "connect") {
-            ws.send(JSON.stringify({ action: "res", response: "hello-ok" }));
+          if (msg.type === "req" && msg.method === "connect") {
+            ws.send(JSON.stringify({
+              type: "res",
+              id: msg.id,
+              ok: true,
+              payload: {},
+            }));
           }
-          if (msg.action === "req" && msg.method === "chat.send") {
-            // Respond with lifecycle error
+          if (msg.type === "req" && msg.method === "chat.send") {
+            // Respond with chat error event
             setTimeout(() => {
               ws.send(JSON.stringify({
-                action: "res",
-                response: "lifecycle:error",
-                sessionKey: msg.sessionKey,
-                message: "Model not available",
+                type: "event",
+                event: "chat",
+                payload: {
+                  sessionKey: msg.params?.sessionKey,
+                  state: "error",
+                  errorMessage: "Model not available",
+                },
               }));
             }, 50);
           }
@@ -541,6 +575,70 @@ describe("TaskExecutor", () => {
       );
 
       await executor.close();
+      executor = null;
+      for (const ws of connections) ws.close();
+      await new Promise<void>((r) => wss.close(() => r()));
+    });
+
+    it("handles gateway request error response", async () => {
+      const port = getRandomPort();
+      const connections: WebSocket[] = [];
+      const wss = new WebSocketServer({ port });
+
+      wss.on("connection", (ws) => {
+        connections.push(ws);
+        ws.send(JSON.stringify({
+          type: "event",
+          event: "connect.challenge",
+          payload: { nonce: "test-nonce" },
+        }));
+        ws.on("message", (data: Buffer) => {
+          const msg = JSON.parse(data.toString());
+          if (msg.type === "req" && msg.method === "connect") {
+            ws.send(JSON.stringify({
+              type: "res",
+              id: msg.id,
+              ok: true,
+              payload: {},
+            }));
+          }
+          if (msg.type === "req" && msg.method === "chat.send") {
+            // Respond with error response (not event)
+            setTimeout(() => {
+              ws.send(JSON.stringify({
+                type: "res",
+                id: msg.id,
+                ok: false,
+                error: { code: "chat_error", message: "Session limit exceeded" },
+              }));
+            }, 50);
+          }
+        });
+      });
+
+      const mockRouter = createMockRouter();
+      executor = new TaskExecutor({ tasks, gatewayUrl: `ws://127.0.0.1:${port}`, maxConcurrent: 3 });
+      executor.setRouter(mockRouter as any);
+
+      tasks.create(makeTaskRecord({
+        task_id: "err-2",
+        state: "accepted",
+        direction: "inbound",
+        room_id: "room-1",
+        peer_claw_id: "peer.id.claw",
+      }));
+
+      const failedPromise = new Promise<string>((resolve) => {
+        executor.on("task:failed", (taskId: string) => resolve(taskId));
+      });
+
+      executor.start();
+
+      const failedId = await failedPromise;
+      expect(failedId).toBe("err-2");
+
+      await executor.close();
+      executor = null;
       for (const ws of connections) ws.close();
       await new Promise<void>((r) => wss.close(() => r()));
     });
@@ -559,7 +657,7 @@ describe("TaskExecutor", () => {
       }));
 
       executor.start();
-      await new Promise((r) => setTimeout(r, 300));
+      await new Promise((r) => setTimeout(r, 500));
 
       // Should be executing
       expect(executor.getStatus().executing.length).toBe(1);
@@ -585,7 +683,7 @@ describe("TaskExecutor", () => {
       }));
 
       executor.start();
-      await new Promise((r) => setTimeout(r, 300));
+      await new Promise((r) => setTimeout(r, 500));
 
       await executor.close();
 

@@ -35,6 +35,7 @@ const HOST = process.env.CLAWNEXUS_HOST ?? "127.0.0.1";
 export function registerRelayRoutes(
   app: FastifyInstance,
   getConnector: () => RelayConnector | null,
+  getTokenRefresher?: () => (() => Promise<string>) | null,
 ): void {
   app.post<{ Body: { target_claw_id: string } }>(
     "/relay/connect",
@@ -51,6 +52,17 @@ export function registerRelayRoutes(
         return reply.status(400).send({
           error: "Missing target_claw_id",
         });
+      }
+
+      // Refresh auth token before JOIN (relay JWTs expire after 5 min)
+      const refresher = getTokenRefresher?.();
+      if (refresher) {
+        try {
+          const freshToken = await refresher();
+          connector.updateAuthToken(freshToken);
+        } catch (err) {
+          app.log.warn(`Token refresh before JOIN failed: ${err}`);
+        }
       }
 
       connector.join(target_claw_id);
@@ -610,7 +622,15 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
   registerInstanceRoutes(app, store, scanner);
 
   // Relay routes
-  registerRelayRoutes(app, () => connector);
+  registerRelayRoutes(app, () => connector, () => {
+    const rc = registryClient;
+    const clawName = autoRegister?.clawName;
+    if (!rc || !clawName) return null;
+    return async () => {
+      const result = await rc.getToken(clawName);
+      return result.token;
+    };
+  });
 
   // Agent routes (Layer B)
   registerAgentRoutes(app, {

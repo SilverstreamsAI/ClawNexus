@@ -245,6 +245,9 @@ export class TaskExecutor extends EventEmitter {
       const state = (payload?.state as string) ?? (msg.data as Record<string, unknown>)?.state as string | undefined;
       if (state === "final") {
         this.handleTaskFinal(execEntry, msg);
+      } else if (state === "error") {
+        const errorMessage = (payload?.errorMessage as string) ?? "OpenClaw chat error";
+        this.handleTaskError(execEntry.sessionKey, errorMessage);
       }
     }
   }
