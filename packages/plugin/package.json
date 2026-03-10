@@ -1,6 +1,6 @@
 {
   "name": "clawnexus-plugin",
-  "version": "0.2.8",
+  "version": "0.3.0",
   "description": "OpenClaw plugin adapter for ClawNexus daemon",
   "license": "MIT",
   "author": "alan-silverstreams <alan@silverstream.tech>",
