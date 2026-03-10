@@ -597,7 +597,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
   app.get("/health", async () => ({
     status: "ok",
     service: "clawnexus-daemon",
-    version: "0.3.0",
+    version: "0.3.1",
     timestamp: new Date().toISOString(),
     components: {
       registry: { instances: store.size },
