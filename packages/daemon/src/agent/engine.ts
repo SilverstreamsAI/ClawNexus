@@ -187,6 +187,13 @@ export class PolicyEngine {
         existing.count++;
       }
     }
+
+    // Periodic cleanup: remove expired entries when map grows large
+    if (this.rateCounters.size > 100) {
+      for (const [key, val] of this.rateCounters) {
+        if (val.resetAt <= now) this.rateCounters.delete(key);
+      }
+    }
   }
 
   private async saveConfig(): Promise<void> {

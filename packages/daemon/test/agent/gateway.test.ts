@@ -431,6 +431,46 @@ describe("connectGateway", () => {
     conn.close();
   });
 
+  it("request() rejects on timeout when server never responds", async () => {
+    const port = getRandomPort();
+    gateway = createMockGateway(port, {
+      onRequest: () => {
+        // Never respond — simulate hung server
+      },
+    });
+
+    const conn = await connectGateway({
+      gatewayUrl: `ws://127.0.0.1:${port}`,
+      requestTimeoutMs: 200,
+    });
+
+    await expect(conn.request("tools.catalog", {})).rejects.toThrow(
+      "Gateway request timeout: tools.catalog (200ms)",
+    );
+
+    conn.close();
+  });
+
+  it("request() timeout cleans up pending entry", async () => {
+    const port = getRandomPort();
+    gateway = createMockGateway(port, {
+      onRequest: () => { /* never respond */ },
+    });
+
+    const conn = await connectGateway({
+      gatewayUrl: `ws://127.0.0.1:${port}`,
+      requestTimeoutMs: 100,
+    });
+
+    // First request times out
+    await expect(conn.request("slow.method")).rejects.toThrow("Gateway request timeout");
+
+    // Second request also works (no stale state)
+    await expect(conn.request("slow.method")).rejects.toThrow("Gateway request timeout");
+
+    conn.close();
+  });
+
   it("rejects with generic message when error has no message", async () => {
     const port = getRandomPort();
     gateway = createMockGateway(port, {

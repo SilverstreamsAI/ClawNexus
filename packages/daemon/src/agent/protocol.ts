@@ -169,5 +169,6 @@ export function validatePayload(type: LayerBMessageType, payload: LayerBPayload)
 export function isExpired(envelope: LayerBEnvelope): boolean {
   const ttl = envelope.ttl ?? DEFAULT_TTL;
   const created = new Date(envelope.timestamp).getTime();
+  if (Number.isNaN(created)) return true;
   return Date.now() - created > ttl * 1000;
 }

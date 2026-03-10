@@ -176,6 +176,18 @@ describe("Protocol", () => {
       expect(isExpired(env)).toBe(true);
     });
 
+    it("returns true for invalid timestamp (NaN bypass)", () => {
+      const env = createEnvelope("a", "b", "heartbeat", { task_id: "t" });
+      env.timestamp = "not-a-date";
+      expect(isExpired(env)).toBe(true);
+    });
+
+    it("returns true for empty string timestamp", () => {
+      const env = createEnvelope("a", "b", "heartbeat", { task_id: "t" });
+      env.timestamp = "";
+      expect(isExpired(env)).toBe(true);
+    });
+
     it("uses default TTL of 300s when not set", () => {
       const env = createEnvelope("a", "b", "heartbeat", { task_id: "t" });
       delete (env as any).ttl;

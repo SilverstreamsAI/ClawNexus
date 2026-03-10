@@ -150,6 +150,7 @@ function buildDeviceAuthPayloadV3(params: {
 export interface GatewayConnectionOptions {
   gatewayUrl?: string;
   connectTimeoutMs?: number;
+  requestTimeoutMs?: number;
   role?: string;
   scopes?: string[];
 }
@@ -168,6 +169,7 @@ export interface GatewayConnection {
 export function connectGateway(opts: GatewayConnectionOptions = {}): Promise<GatewayConnection> {
   const gatewayUrl = opts.gatewayUrl ?? "ws://127.0.0.1:18789";
   const connectTimeoutMs = opts.connectTimeoutMs ?? 10_000;
+  const requestTimeoutMs = opts.requestTimeoutMs ?? 30_000;
   const role = opts.role ?? "operator";
   const scopes = opts.scopes ?? ["operator.read", "operator.write"];
 
@@ -278,7 +280,14 @@ export function connectGateway(opts: GatewayConnectionOptions = {}): Promise<Gat
               request(method: string, params?: unknown): Promise<unknown> {
                 return new Promise((res, rej) => {
                   const id = randomUUID();
-                  pendingRequests.set(id, { resolve: res, reject: rej });
+                  const timer = setTimeout(() => {
+                    pendingRequests.delete(id);
+                    rej(new Error(`Gateway request timeout: ${method} (${requestTimeoutMs}ms)`));
+                  }, requestTimeoutMs);
+                  pendingRequests.set(id, {
+                    resolve: (v) => { clearTimeout(timer); res(v); },
+                    reject: (e) => { clearTimeout(timer); rej(e); },
+                  });
                   ws.send(JSON.stringify({ type: "req", id, method, params: params ?? {} }));
                 });
               },

@@ -237,7 +237,7 @@ export class TaskManager extends EventEmitter {
       for (const task of this.tasks.values()) {
         if (!ACTIVE_STATES.has(task.state)) continue;
         const maxDuration = (task.task.constraints?.max_duration_s ?? TASK_TIMEOUT_S) * 1000;
-        const elapsed = now - new Date(task.updated_at).getTime();
+        const elapsed = now - new Date(task.created_at).getTime();
         if (elapsed > maxDuration) {
           this.updateState(task.task_id, "timeout");
           this.emit("timeout", task);
