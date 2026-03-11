@@ -82,7 +82,7 @@ describe("RegistryStore", () => {
       await new Promise((r) => setTimeout(r, 600)); // wait for debounced flush
       const raw = await fs.promises.readFile(path.join(tmpDir, "registry.json"), "utf-8");
       const persisted = JSON.parse(raw);
-      expect(persisted.schema_version).toBe("5");
+      expect(persisted.schema_version).toBe("6");
     });
 
     it("migrates v3 registry to v4 (renames tailscale → vpn in network_scope)", async () => {
@@ -108,7 +108,7 @@ describe("RegistryStore", () => {
       await new Promise((r) => setTimeout(r, 600));
       const raw = await fs.promises.readFile(path.join(tmpDir, "registry.json"), "utf-8");
       const persisted = JSON.parse(raw);
-      expect(persisted.schema_version).toBe("5");
+      expect(persisted.schema_version).toBe("6");
       expect(persisted.instances[0].network_scope).toBe("vpn");
     });
 
@@ -391,7 +391,7 @@ describe("RegistryStore", () => {
         "utf-8",
       );
       const data = JSON.parse(raw);
-      expect(data.schema_version).toBe("5");
+      expect(data.schema_version).toBe("6");
       expect(data.instances).toHaveLength(1);
       expect(data.instances[0].auto_name).toBe("persist-test");
     });

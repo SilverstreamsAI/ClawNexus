@@ -3,7 +3,7 @@
 [![npm](https://img.shields.io/npm/v/clawnexus)](https://www.npmjs.com/package/clawnexus)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen)](https://nodejs.org/)
-[![Tests](https://img.shields.io/badge/tests-365%20passing-brightgreen)](#)
+[![Tests](https://img.shields.io/badge/tests-609%20passing-brightgreen)](#)
 
 **Identity registry for AI agents** — discover, name, and connect OpenClaw instances across networks.
 
@@ -11,40 +11,55 @@ ClawNexus fills the "naming layer" gap in the OpenClaw ecosystem: instance namin
 
 ## What It Does
 
-- **Discovers** OpenClaw instances on your LAN via mDNS and active scanning
+- **Discovers** OpenClaw instances automatically — zero configuration required
 - **Names** each instance with a human-readable alias (e.g. `home`, `raspi`, `office`)
 - **Persists** a local registry of known instances with health status
 - **Exposes** an HTTP API and CLI for querying and managing instances
-- **Connects** instances across the internet via relay (v0.4+)
+- **Connects** instances across the internet via encrypted relay
 
 ## Architecture
 
+Four discovery chains feed into a unified registry — no OpenClaw configuration needed:
+
 ```
-┌──────────────────────────────────────────────────┐
-│                  ClawNexus Daemon                 │
-│                                                  │
-│  ┌─────────┐  ┌──────────┐  ┌────────────────┐  │
-│  │  mDNS   │  │  Active   │  │    Health      │  │
-│  │Listener │  │ Scanner   │  │   Checker      │  │
-│  └────┬────┘  └─────┬─────┘  └───────┬────────┘  │
-│       │             │                │            │
-│       ▼             ▼                ▼            │
-│  ┌──────────────────────────────────────────┐    │
-│  │           Registry Store                  │    │
-│  │       (~/.clawnexus/registry.json)        │    │
-│  └──────────────────┬───────────────────────┘    │
-│                     │                             │
-│  ┌──────────────────▼───────────────────────┐    │
-│  │          HTTP API (:17890)                │    │
-│  └──────────────────────────────────────────┘    │
-└──────────────────────────────────────────────────┘
-       ▲                           ▲
-       │                           │
-  ┌────┴─────┐              ┌──────┴──────┐
-  │   CLI    │              │  SDK/Skill  │
-  │clawnexus │              │  (client)   │
-  └──────────┘              └─────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                        ClawNexus Daemon                         │
+│                                                                 │
+│  ┌────────────┐ ┌────────────┐ ┌──────────┐ ┌──────────────┐  │
+│  │ LocalProbe │ │    CDP     │ │  mDNS    │ │   Active     │  │
+│  │ 127.0.0.1  │ │ UDP :17891 │ │ Listener │ │  Scanner     │  │
+│  │  :18789    │ │ broadcast  │ │          │ │  HTTP probe  │  │
+│  └─────┬──────┘ └─────┬──────┘ └────┬─────┘ └──────┬───────┘  │
+│        │              │             │               │           │
+│        ▼              ▼             ▼               ▼           │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                   Registry Store                         │   │
+│  │              (~/.clawnexus/registry.json)                 │   │
+│  └──────────────────────┬──────────────────────────────────┘   │
+│                         │                                       │
+│  ┌──────────────────────▼──────────────────────────────────┐   │
+│  │                  HTTP API (:17890)                        │   │
+│  └──────────────────────┬──────────────────────────────────┘   │
+│                         │                                       │
+│  ┌──────────────────────▼──────────────────────────────────┐   │
+│  │              Relay Connector (WSS)                        │   │
+│  │          cross-network encrypted tunnels                  │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+        ▲                                      ▲
+        │                                      │
+   ┌────┴─────┐                         ┌──────┴──────┐
+   │   CLI    │                         │  SDK/Skill  │
+   │clawnexus │                         │  (client)   │
+   └──────────┘                         └─────────────┘
 ```
+
+| Chain | Mechanism | Needs OpenClaw config? | Use case |
+|-------|-----------|----------------------|----------|
+| **LocalProbe** | HTTP probe `127.0.0.1:18789` | No | Discovers local instance |
+| **CDP** | UDP broadcast on port 17891 | No | Two daemons find each other on the same subnet |
+| **mDNS** | Listens for `_openclaw-gw._tcp.local` | Yes (`--bind lan`) | Discovers mDNS-advertising instances |
+| **ActiveScanner** | HTTP scan for control-ui-config | Yes (reachable bind) | `clawnexus scan --target <ip>` |
 
 ## Packages
 

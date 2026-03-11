@@ -38,11 +38,15 @@ export class RegistryStore extends EventEmitter {
         const raw = await fs.promises.readFile(this.registryPath, "utf-8");
         const data: RegistryFile = JSON.parse(raw);
 
-        if (data.schema_version === "5" && Array.isArray(data.instances)) {
-          // v5: current schema, load directly
+        if ((data.schema_version === "6" || data.schema_version === "5") && Array.isArray(data.instances)) {
+          // v5/v6: compatible schemas (remote_card is optional), load directly
           for (const inst of data.instances) {
             const key = this.networkKey(inst.address, inst.gateway_port);
             this.instances.set(key, inst);
+          }
+          if (data.schema_version === "5") {
+            // Bump to v6 on next flush
+            this.scheduleDirtyFlush();
           }
         } else if (data.schema_version === "4" && Array.isArray(data.instances)) {
           // v4 → v5 migration: no data changes, just bump version
@@ -176,6 +180,8 @@ export class RegistryStore extends EventEmitter {
       instance.owner_pubkey = instance.owner_pubkey ?? existing.owner_pubkey;
       // Preserve implementation (prefer new value if provided)
       instance.implementation = instance.implementation ?? existing.implementation;
+      // Preserve remote_card (fetched by CardFetcher)
+      instance.remote_card = instance.remote_card ?? existing.remote_card;
 
       this.instances.set(key, instance);
       this.scheduleDirtyFlush();
@@ -313,6 +319,7 @@ export class RegistryStore extends EventEmitter {
       connectivity: incoming.connectivity ?? existing.connectivity,
       is_self: existing.is_self || incoming.is_self,
       implementation: incoming.implementation ?? existing.implementation,
+      remote_card: existing.remote_card ?? incoming.remote_card,
     };
   }
 
@@ -341,7 +348,7 @@ export class RegistryStore extends EventEmitter {
 
   private async flushNow(): Promise<void> {
     const data: RegistryFile = {
-      schema_version: "5",
+      schema_version: "6",
       updated_at: new Date().toISOString(),
       instances: Array.from(this.instances.values()),
     };

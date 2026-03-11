@@ -1,5 +1,20 @@
 // ClawNexus shared types — used across store, mDNS, health, API, scanner
 
+import type { AgentSkill } from "./a2a/card.js";
+
+export interface RemoteCard {
+  skills: AgentSkill[];
+  capabilities?: {
+    streaming?: boolean;
+    pushNotifications?: boolean;
+    stateTransitionHistory?: boolean;
+  };
+  input_modes?: string[];
+  output_modes?: string[];
+  card_url: string;
+  fetched_at: string;     // ISO 8601
+}
+
 export type ClawImplementation =
   | "openclaw"
   | "goclaw"
@@ -49,6 +64,9 @@ export interface ClawInstance {
   // Implementation variant (fingerprint identification)
   implementation?: ClawImplementation;
 
+  // Remote Agent Card (fetched from remote instance)
+  remote_card?: RemoteCard;
+
   // User-defined
   labels?: Record<string, string>;
 }
@@ -72,7 +90,7 @@ export interface UnreachableInstance {
 }
 
 export interface RegistryFile {
-  schema_version: "2" | "3" | "4" | "5";
+  schema_version: "2" | "3" | "4" | "5" | "6";
   updated_at: string;
   instances: ClawInstance[];
 }

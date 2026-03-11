@@ -1,4 +1,4 @@
-import type { ClawInstance } from "../src/types.js";
+import type { ClawInstance, RemoteCard } from "../src/types.js";
 import type { TaskRecord, TaskSpec, LayerBEnvelope, ProposePayload } from "../src/agent/types.js";
 import { randomUUID } from "node:crypto";
 
@@ -26,6 +26,7 @@ export function makeInstance(overrides: Partial<ClawInstance> = {}): ClawInstanc
     connectivity: overrides.connectivity,
     is_self: overrides.is_self,
     implementation: overrides.implementation,
+    remote_card: overrides.remote_card,
     claw_name: overrides.claw_name,
     owner_pubkey: overrides.owner_pubkey,
     labels: overrides.labels,

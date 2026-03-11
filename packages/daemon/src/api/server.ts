@@ -25,6 +25,7 @@ import { AutoRegister } from "../registry/auto-register.js";
 import { RemoteDiscovery } from "../registry/discovery.js";
 import { RelayConnector } from "../relay/connector.js";
 import { buildAgentCard } from "../a2a/card.js";
+import { CardFetcher } from "../a2a/fetcher.js";
 import { SkillsRegistry } from "../agent/services.js";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -475,8 +476,10 @@ export function registerA2aRoutes(
   // All instances as Agent Cards
   app.get("/a2a/cards", async () => {
     const instances = store.getAll();
-    const skills = skillsRegistry?.getSkills();
-    const cards = instances.map((i) => buildAgentCard(i, daemonVersion, skills));
+    const localSkills = skillsRegistry?.getSkills();
+    const cards = instances.map((i) =>
+      buildAgentCard(i, daemonVersion, i.is_self ? localSkills : undefined),
+    );
     return { count: cards.length, cards };
   });
 
@@ -488,7 +491,8 @@ export function registerA2aRoutes(
       if (!inst) {
         return reply.status(404).send({ error: "Instance not found" });
       }
-      return buildAgentCard(inst, daemonVersion, skillsRegistry?.getSkills());
+      const localSkills = inst.is_self ? skillsRegistry?.getSkills() : undefined;
+      return buildAgentCard(inst, daemonVersion, localSkills);
     },
   );
 }
@@ -512,6 +516,7 @@ export interface DaemonHandle {
   tasks: TaskManager;
   getRouter: () => AgentRouter | null;
   skillsRegistry: SkillsRegistry;
+  cardFetcher: CardFetcher;
   registryClient: RegistryClient | null;
   autoRegister: AutoRegister | null;
   remoteDiscovery: RemoteDiscovery | null;
@@ -566,6 +571,9 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
 
   // 6c. Create SkillsRegistry
   const skillsRegistry = new SkillsRegistry();
+
+  // 6d. Create CardFetcher (fetches remote Agent Cards from discovered instances)
+  const cardFetcher = new CardFetcher(store);
 
   // 7. Detect WireGuard interfaces
   const wgInfo: WireGuardInfo = await detectWireGuard();
@@ -672,10 +680,14 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     broadcast.sendAnnounce();
     // Start skills registry once we know the local Gateway is available
     skillsRegistry.start();
+    // Start fetching remote Agent Cards
+    cardFetcher.start();
   });
 
   localProbe.on("local:unavailable", () => {
     app.log.info("No local OpenClaw instance on :18789");
+    // Still start CardFetcher — remote cards are useful even without local instance
+    cardFetcher.start();
   });
 
   // Initialize registry after LocalProbe (needs agentId for registration)
@@ -823,6 +835,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
   // Graceful shutdown hook
   app.addHook("onClose", async () => {
     if (tokenRefreshTimer) clearInterval(tokenRefreshTimer);
+    cardFetcher.stop();
     skillsRegistry.stop();
     await taskExecutor.close();
     autoRegister?.stop();
@@ -878,6 +891,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     tasks: taskManager,
     getRouter: () => agentRouter,
     skillsRegistry,
+    cardFetcher,
     registryClient,
     autoRegister,
     remoteDiscovery,

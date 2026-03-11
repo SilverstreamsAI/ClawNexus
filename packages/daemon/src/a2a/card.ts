@@ -43,19 +43,26 @@ export function buildAgentCard(
   daemonVersion: string,
   skills?: AgentSkill[],
 ): AgentCard {
+  // Skill priority: remote_card.skills (remote) > skills param (local) > DEFAULT_SKILL
+  const resolvedSkills = instance.remote_card?.skills?.length
+    ? instance.remote_card.skills
+    : (skills && skills.length > 0 ? skills : [DEFAULT_SKILL]);
+
+  const remoteCapabilities = instance.remote_card?.capabilities;
+
   return {
     name: instance.alias ?? instance.auto_name,
     description: instance.display_name || instance.assistant_name,
     url: `http://${instance.address}:17890`,
     version: daemonVersion,
     capabilities: {
-      streaming: false,
-      pushNotifications: false,
-      stateTransitionHistory: false,
+      streaming: remoteCapabilities?.streaming ?? false,
+      pushNotifications: remoteCapabilities?.pushNotifications ?? false,
+      stateTransitionHistory: remoteCapabilities?.stateTransitionHistory ?? false,
     },
-    skills: skills && skills.length > 0 ? skills : [DEFAULT_SKILL],
-    defaultInputModes: ["text/plain"],
-    defaultOutputModes: ["text/plain"],
+    skills: resolvedSkills,
+    defaultInputModes: instance.remote_card?.input_modes ?? ["text/plain"],
+    defaultOutputModes: instance.remote_card?.output_modes ?? ["text/plain"],
     provider: {
       name: "ClawNexus",
       url: "https://github.com/SilverstreamsAI/ClawNexus",
