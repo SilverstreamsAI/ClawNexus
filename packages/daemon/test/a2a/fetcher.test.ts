@@ -202,6 +202,90 @@ describe("CardFetcher", () => {
     });
   });
 
+  describe("start() idempotency", () => {
+    it("calling start() twice does not register duplicate listeners or timers", async () => {
+      const fetchSpy = vi.spyOn(fetcher, "fetchCard").mockResolvedValue(null);
+      fetcher.start();
+      fetcher.start(); // second call should be a no-op
+
+      const inst = makeInstance({ address: "192.168.1.60" });
+      store.upsert(inst);
+
+      await new Promise((r) => setTimeout(r, 50));
+      // fetchCard called at most once (not twice due to duplicate listener)
+      expect(fetchSpy.mock.calls.length).toBeLessThanOrEqual(1);
+    });
+  });
+
+  describe("stale card re-fetch", () => {
+    it("re-fetches instances whose remote_card is older than staleMs", async () => {
+      const shortStaleMs = 100;
+      const shortFetcher = new CardFetcher(store, {
+        refreshIntervalMs: 60_000,
+        fetchTimeoutMs: 1000,
+        staleMs: shortStaleMs,
+      });
+
+      const originalFetch = globalThis.fetch;
+      let fetchCount = 0;
+      globalThis.fetch = vi.fn().mockImplementation(async () => {
+        fetchCount++;
+        return {
+          ok: true,
+          json: async () => ({
+            name: "bot",
+            skills: [{ id: "s1", name: "S1", description: "d", tags: ["general"] }],
+          }),
+        };
+      });
+
+      try {
+        const staleCard = makeInstance({
+          address: "192.168.1.70",
+          remote_card: {
+            skills: [{ id: "old", name: "Old", description: "old", tags: ["general"] }],
+            card_url: "http://192.168.1.70:17890/.well-known/agent-card.json",
+            fetched_at: new Date(Date.now() - shortStaleMs - 100).toISOString(), // older than staleMs
+          },
+        });
+        store.upsert(staleCard);
+
+        await shortFetcher.refreshAll();
+        expect(fetchCount).toBe(1);
+      } finally {
+        shortFetcher.stop();
+        globalThis.fetch = originalFetch;
+      }
+    });
+  });
+
+  describe("fetch during instance removal", () => {
+    it("does not crash when instance is removed before fetch completes", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockImplementation(async () => {
+        // Simulate instance removed mid-flight
+        store.remove(store.networkKey("192.168.1.80", 18789));
+        return {
+          ok: true,
+          json: async () => ({
+            name: "bot",
+            skills: [{ id: "s1", name: "S1", description: "d", tags: ["general"] }],
+          }),
+        };
+      });
+
+      try {
+        const inst = makeInstance({ address: "192.168.1.80" });
+        store.upsert(inst);
+
+        // refreshAll should complete without throwing
+        await expect(fetcher.refreshAll()).resolves.toBeUndefined();
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+  });
+
   describe("refreshAll", () => {
     it("only refreshes stale cards", async () => {
       const originalFetch = globalThis.fetch;

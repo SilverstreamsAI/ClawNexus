@@ -35,6 +35,7 @@ export class CardFetcher extends EventEmitter {
   }
 
   start(): void {
+    if (this.refreshTimer !== null) return; // already running
     this.stopped = false;
     this.store.on("upsert", this.onUpsert);
 
