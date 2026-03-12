@@ -72,7 +72,11 @@ export class AgentRouter extends EventEmitter {
   }
 
   sendMessage(roomId: string, envelope: LayerBEnvelope): boolean {
-    return this.connector.sendData(roomId, JSON.stringify(envelope));
+    const result = this.connector.sendData(roomId, JSON.stringify(envelope));
+    if (!result) {
+      console.log(`[clawnexus] [Router] sendMessage FAILED — room=${roomId} (no room or no session_key)`);
+    }
+    return result;
   }
 
   /** Initiate a propose to a peer (outbound task) */
@@ -95,7 +99,8 @@ export class AgentRouter extends EventEmitter {
     };
 
     this.tasks.create(record);
-    this.sendMessage(roomId, envelope);
+    const sent = this.sendMessage(roomId, envelope);
+    console.log(`[clawnexus] [Router] propose sent=${sent} room=${roomId} target=${targetClawId}`);
     this.emit("outbound", envelope);
     return record;
   }

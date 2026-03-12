@@ -220,8 +220,11 @@ export class RelayConnector extends EventEmitter {
             const plaintext = decrypt(room.session_key, msg.payload);
             this.emit("data", msg.room_id, plaintext);
           } catch {
-            this.emit("error", new Error("Failed to decrypt message"));
+            // Decrypt failed — log and skip, do not emit "error" (would crash if no listener)
+            console.log(`[clawnexus] [Relay] Failed to decrypt message in room ${msg.room_id} — skipping`);
           }
+        } else {
+          console.log(`[clawnexus] [Relay] DATA in room ${msg.room_id} — no session_key yet, dropping`);
         }
         break;
       }
