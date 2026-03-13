@@ -26,6 +26,9 @@ import { RemoteDiscovery } from "../registry/discovery.js";
 import { RelayConnector } from "../relay/connector.js";
 import { buildAgentCard } from "../a2a/card.js";
 import { CardFetcher } from "../a2a/fetcher.js";
+import { A2AHandler } from "../a2a/handler.js";
+import type { A2ARequest, A2AResponse, A2AError } from "../a2a/types.js";
+import { JSON_RPC_PARSE_ERROR, JSON_RPC_INVALID_REQUEST, JSON_RPC_METHOD_NOT_FOUND } from "../a2a/types.js";
 import { SkillsRegistry } from "../agent/services.js";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -463,6 +466,7 @@ export function registerA2aRoutes(
   store: RegistryStore,
   daemonVersion: string,
   skillsRegistry?: SkillsRegistry,
+  a2aHandler?: A2AHandler,
 ): void {
   // A2A standard well-known endpoint — returns card for the local (is_self) instance
   app.get("/.well-known/agent-card.json", async (_request, reply) => {
@@ -495,6 +499,71 @@ export function registerA2aRoutes(
       return buildAgentCard(inst, daemonVersion, localSkills);
     },
   );
+
+  // A2A JSON-RPC 2.0 endpoint
+  if (a2aHandler) {
+    app.post("/a2a", async (request, reply) => {
+      const body = request.body as Record<string, unknown> | undefined;
+      if (!body || body.jsonrpc !== "2.0" || typeof body.method !== "string") {
+        const id = (body?.id as string | number) ?? null;
+        const resp: A2AResponse = {
+          jsonrpc: "2.0",
+          id: id as string | number,
+          error: { code: JSON_RPC_INVALID_REQUEST, message: "Invalid JSON-RPC 2.0 request" },
+        };
+        return reply.status(200).send(resp);
+      }
+
+      const req = body as unknown as A2ARequest;
+
+      if (req.method === "tasks/send") {
+        const result = await a2aHandler.handleTaskSend(req.params);
+        // Check if result is an error
+        if ("code" in result && "message" in result && !("id" in result)) {
+          return reply.status(200).send({
+            jsonrpc: "2.0",
+            id: req.id,
+            error: result,
+          } satisfies A2AResponse);
+        }
+        return reply.status(200).send({
+          jsonrpc: "2.0",
+          id: req.id,
+          result,
+        } satisfies A2AResponse);
+      }
+
+      if (req.method === "tasks/get") {
+        const params = req.params as { id?: string } | undefined;
+        if (!params?.id) {
+          return reply.status(200).send({
+            jsonrpc: "2.0",
+            id: req.id,
+            error: { code: -32602, message: "Missing task id" },
+          } satisfies A2AResponse);
+        }
+        const task = a2aHandler.getTask(params.id);
+        if (!task) {
+          return reply.status(200).send({
+            jsonrpc: "2.0",
+            id: req.id,
+            error: { code: -32001, message: "Task not found" },
+          } satisfies A2AResponse);
+        }
+        return reply.status(200).send({
+          jsonrpc: "2.0",
+          id: req.id,
+          result: task,
+        } satisfies A2AResponse);
+      }
+
+      return reply.status(200).send({
+        jsonrpc: "2.0",
+        id: req.id,
+        error: { code: JSON_RPC_METHOD_NOT_FOUND, message: `Method not found: ${req.method}` },
+      } satisfies A2AResponse);
+    });
+  }
 }
 
 export interface DaemonOptions {
@@ -660,11 +729,12 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     unreachable,
   });
 
-  // A2A Agent Card routes
+  // A2A Agent Card + JSON-RPC routes
   const daemonPkg = JSON.parse(
     readFileSync(join(__dirname, "../../package.json"), "utf-8"),
   ) as { version: string };
-  registerA2aRoutes(app, store, daemonPkg.version, skillsRegistry);
+  const a2aHandler = new A2AHandler();
+  registerA2aRoutes(app, store, daemonPkg.version, skillsRegistry, a2aHandler);
 
   // 9. Initialize Registry integration (non-fatal — LAN must work without it)
   let identityKeys: IdentityKeys | null = null;
