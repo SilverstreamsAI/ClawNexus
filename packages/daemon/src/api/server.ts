@@ -27,6 +27,7 @@ import { RelayConnector } from "../relay/connector.js";
 import { buildAgentCard } from "../a2a/card.js";
 import { CardFetcher } from "../a2a/fetcher.js";
 import { A2AHandler } from "../a2a/handler.js";
+import { A2ATaskStore } from "../a2a/store.js";
 import type { A2ARequest, A2AResponse, A2AError } from "../a2a/types.js";
 import { JSON_RPC_PARSE_ERROR, JSON_RPC_INVALID_REQUEST, JSON_RPC_METHOD_NOT_FOUND } from "../a2a/types.js";
 import { SkillsRegistry } from "../agent/services.js";
@@ -733,7 +734,9 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
   const daemonPkg = JSON.parse(
     readFileSync(join(__dirname, "../../package.json"), "utf-8"),
   ) as { version: string };
-  const a2aHandler = new A2AHandler();
+  const a2aTaskStore = new A2ATaskStore();
+  await a2aTaskStore.init();
+  const a2aHandler = new A2AHandler({ store: a2aTaskStore });
   registerA2aRoutes(app, store, daemonPkg.version, skillsRegistry, a2aHandler);
 
   // 9. Initialize Registry integration (non-fatal — LAN must work without it)
@@ -927,6 +930,8 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     mdns.stop();
     await broadcast.stop();
     connector?.disconnect();
+    a2aHandler.close();
+    await a2aTaskStore.close();
     await store.close();
   });
 

@@ -442,3 +442,112 @@ List mDNS-heard instances that failed HTTP reachability checks.
   ]
 }
 ```
+
+## A2A (Agent-to-Agent Protocol)
+
+ClawNexus exposes [A2A](https://github.com/google/a2a)-compatible endpoints for inter-agent communication.
+
+### `GET /.well-known/agent-card.json`
+
+Returns the Agent Card for the local OpenClaw instance (A2A standard discovery endpoint).
+
+**Response:**
+
+```json
+{
+  "name": "macbook-pro",
+  "description": "OpenClaw assistant",
+  "url": "http://192.168.1.110:17890",
+  "version": "0.3.1",
+  "capabilities": { "streaming": false, "pushNotifications": false, "stateTransitionHistory": false },
+  "skills": [{ "id": "general-assistant", "name": "General Assistant", "description": "...", "tags": ["general"] }],
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"],
+  "provider": { "name": "ClawNexus" }
+}
+```
+
+### `GET /a2a/cards`
+
+Returns Agent Cards for all discovered instances.
+
+**Response:** `{ "count": 2, "cards": [ ... ] }`
+
+### `GET /a2a/cards/:name`
+
+Returns the Agent Card for a specific instance (resolved via alias > auto_name > display_name).
+
+**Errors:** `404` — `{ "error": "Instance not found" }`
+
+### `POST /a2a`
+
+JSON-RPC 2.0 endpoint for A2A task handling. Forwards messages to the local OpenClaw Gateway and returns results as A2A Tasks.
+
+**Methods:**
+
+#### `tasks/send`
+
+Send a message and wait for the response.
+
+```bash
+curl -s http://localhost:17890/a2a \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tasks/send",
+    "id": "1",
+    "params": {
+      "message": {
+        "role": "user",
+        "parts": [{"type": "text", "text": "What can you do?"}]
+      }
+    }
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "1",
+  "result": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "status": {
+      "state": "completed",
+      "message": { "role": "agent", "parts": [{"type": "text", "text": "I can help with..."}] }
+    },
+    "artifacts": [{ "parts": [{"type": "text", "text": "I can help with..."}] }],
+    "history": [
+      { "role": "user", "parts": [{"type": "text", "text": "What can you do?"}] },
+      { "role": "agent", "parts": [{"type": "text", "text": "I can help with..."}] }
+    ]
+  }
+}
+```
+
+#### `tasks/get`
+
+Retrieve a previously submitted task by ID.
+
+```bash
+curl -s http://localhost:17890/a2a \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tasks/get",
+    "id": "2",
+    "params": { "id": "550e8400-e29b-41d4-a716-446655440000" }
+  }'
+```
+
+**A2A Error Codes:**
+
+| Code | Meaning |
+|------|---------|
+| `-32700` | Parse error |
+| `-32600` | Invalid JSON-RPC request |
+| `-32601` | Method not found |
+| `-32602` | Invalid params (missing message/parts) |
+| `-32005` | Too many concurrent tasks (max: 5) |
+| `-32001` | Task not found |
