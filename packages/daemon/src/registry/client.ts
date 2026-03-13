@@ -54,11 +54,30 @@ export interface CheckNameResult {
   available: boolean;
 }
 
+export interface InstanceMetadata {
+  software_version: string;
+  openclaw_version?: string;
+  uptime_hours: number;
+  os_platform: string;
+  instance_count: number;
+}
+
+export interface AgentCardSummary {
+  skills_count: number;
+  skills: string[];
+  capabilities?: Record<string, unknown>;
+  input_modes?: string[];
+  output_modes?: string[];
+  card_url?: string;
+}
+
 export interface RegisterParams {
   claw_id: string;
   capabilities?: string[];
   relay_hint?: string;
   visibility?: "public" | "unlisted";
+  metadata?: InstanceMetadata;
+  agent_card?: AgentCardSummary;
 }
 
 export class RegistryClient {
@@ -82,6 +101,8 @@ export class RegistryClient {
       ...(params.capabilities && { capabilities: params.capabilities }),
       ...(params.relay_hint && { relay_hint: params.relay_hint }),
       ...(params.visibility && { visibility: params.visibility }),
+      ...(params.metadata && { metadata: params.metadata }),
+      ...(params.agent_card && { agent_card: params.agent_card }),
     };
 
     const body = {

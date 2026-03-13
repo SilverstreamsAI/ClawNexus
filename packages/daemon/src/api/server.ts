@@ -694,7 +694,18 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
   try {
     identityKeys = await loadOrCreateKeys();
     registryClient = new RegistryClient(identityKeys);
-    autoRegister = new AutoRegister(registryClient, store, localProbe, identityKeys);
+    autoRegister = new AutoRegister(
+      registryClient, store, localProbe, identityKeys,
+      daemonPkg.version,
+      () => {
+        const skills = skillsRegistry.getSkills();
+        if (!skills || skills.length === 0) return null;
+        return {
+          skills_count: skills.length,
+          skills: skills.map((s) => s.name ?? s.id ?? "unknown"),
+        };
+      },
+    );
     remoteDiscovery = new RemoteDiscovery(registryClient, store);
 
     registerRegistryRoutes(app, {

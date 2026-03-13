@@ -457,6 +457,12 @@ async function cmdInfo(args: ParsedArgs): Promise<void> {
     if (inst.labels && Object.keys(inst.labels).length > 0) {
       console.log(`Labels:        ${JSON.stringify(inst.labels)}`);
     }
+    if (inst.remote_card?.skills?.length) {
+      const names = inst.remote_card.skills.map((s) => s.name || s.id).join(", ");
+      console.log(`Skills:        ${names} (${inst.remote_card.skills.length} skill${inst.remote_card.skills.length === 1 ? "" : "s"})`);
+      console.log(`Card URL:      ${inst.remote_card.card_url}`);
+      console.log(`Card Fetched:  ${new Date(inst.remote_card.fetched_at).toLocaleString()}`);
+    }
   }
 }
 
