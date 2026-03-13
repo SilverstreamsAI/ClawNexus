@@ -375,12 +375,205 @@ describe("A2AHandler", () => {
       // Wait for p1/p2 to settle (they'll fail due to close)
       await Promise.allSettled([p1, p2]);
     });
+
+    it("close() rejects pending sessions with 'Handler closed'", async () => {
+      gateway = createMockGateway(port, { autoFinal: false }); // Never auto-completes
+      handler = new A2AHandler({ gatewayUrl: `ws://127.0.0.1:${port}`, timeoutMs: 30_000, store });
+
+      const taskPromise = handler.handleTaskSend({ message: makeMessage("long task") });
+
+      // Wait for the task to reach "working" state (connection established, chat.send sent)
+      await new Promise((r) => setTimeout(r, 300));
+
+      handler.close();
+
+      const result = await taskPromise;
+      const task = result as A2ATask;
+      expect(task.status.state).toBe("failed");
+      expect(task.status.message?.parts[0].text).toContain("Handler closed");
+    });
+
+    it("gateway drop mid-task fails the task", async () => {
+      gateway = createMockGateway(port, { autoFinal: false });
+      handler = new A2AHandler({ gatewayUrl: `ws://127.0.0.1:${port}`, timeoutMs: 30_000, store });
+
+      const taskPromise = handler.handleTaskSend({ message: makeMessage("will drop") });
+
+      // Wait for connection + chat.send
+      await new Promise((r) => setTimeout(r, 300));
+
+      // Server-side close all connections
+      for (const ws of gateway.connections) {
+        if (ws.readyState === WebSocket.OPEN) ws.close();
+      }
+
+      const result = await taskPromise;
+      const task = result as A2ATask;
+      expect(task.status.state).toBe("failed");
+      expect(task.status.message?.parts[0].text).toContain("Gateway connection closed");
+    });
+
+    it("concurrent tasks multiplex correctly on same connection", async () => {
+      // Custom gateway that responds to each session independently
+      const connections: WebSocket[] = [];
+      const wss = new WebSocketServer({ port });
+
+      wss.on("connection", (ws) => {
+        connections.push(ws);
+        ws.send(JSON.stringify({
+          type: "event",
+          event: "connect.challenge",
+          payload: { nonce: randomUUID(), ts: Date.now() },
+        }));
+        ws.on("message", (data: Buffer) => {
+          const msg = JSON.parse(data.toString());
+          if (msg.type === "req" && msg.method === "connect") {
+            ws.send(JSON.stringify({
+              type: "res",
+              id: msg.id,
+              ok: true,
+              payload: {
+                type: "hello-ok",
+                protocol: 3,
+                server: { version: "mock", connId: randomUUID() },
+                features: {},
+                snapshot: {},
+                policy: {},
+              },
+            }));
+          }
+          if (msg.type === "req" && msg.method === "chat.send") {
+            const sk = msg.params?.sessionKey as string;
+            const userMsg = msg.params?.message as string;
+            // Reply with the user message echoed back, unique per session
+            setTimeout(() => {
+              ws.send(JSON.stringify({
+                type: "event",
+                event: "chat",
+                payload: {
+                  sessionKey: sk,
+                  state: "final",
+                  messages: [{ role: "assistant", content: `echo:${userMsg}` }],
+                },
+              }));
+            }, 30);
+          }
+        });
+      });
+
+      gateway = { wss, connections, close: () => new Promise<void>((r) => {
+        for (const ws of connections) if (ws.readyState === WebSocket.OPEN) ws.close();
+        wss.close(() => r());
+      })};
+
+      handler = new A2AHandler({ gatewayUrl: `ws://127.0.0.1:${port}`, store });
+
+      // Fire 3 tasks in parallel
+      const [r1, r2, r3] = await Promise.all([
+        handler.handleTaskSend({ message: makeMessage("alpha") }),
+        handler.handleTaskSend({ message: makeMessage("beta") }),
+        handler.handleTaskSend({ message: makeMessage("gamma") }),
+      ]);
+
+      const t1 = r1 as A2ATask;
+      const t2 = r2 as A2ATask;
+      const t3 = r3 as A2ATask;
+
+      expect(t1.status.state).toBe("completed");
+      expect(t2.status.state).toBe("completed");
+      expect(t3.status.state).toBe("completed");
+
+      // Each got its own response
+      expect(t1.artifacts![0].parts[0].text).toBe("echo:alpha");
+      expect(t2.artifacts![0].parts[0].text).toBe("echo:beta");
+      expect(t3.artifacts![0].parts[0].text).toBe("echo:gamma");
+
+      // All have unique task IDs
+      expect(new Set([t1.id, t2.id, t3.id]).size).toBe(3);
+    });
+
+    it("chat.update with non-final state does not resolve the task", async () => {
+      // Gateway that sends a chat.update (streaming) before the final chat event
+      const connections: WebSocket[] = [];
+      const wss = new WebSocketServer({ port });
+
+      wss.on("connection", (ws) => {
+        connections.push(ws);
+        ws.send(JSON.stringify({
+          type: "event",
+          event: "connect.challenge",
+          payload: { nonce: randomUUID(), ts: Date.now() },
+        }));
+        ws.on("message", (data: Buffer) => {
+          const msg = JSON.parse(data.toString());
+          if (msg.type === "req" && msg.method === "connect") {
+            ws.send(JSON.stringify({
+              type: "res",
+              id: msg.id,
+              ok: true,
+              payload: {
+                type: "hello-ok",
+                protocol: 3,
+                server: { version: "mock", connId: randomUUID() },
+                features: {},
+                snapshot: {},
+                policy: {},
+              },
+            }));
+          }
+          if (msg.type === "req" && msg.method === "chat.send") {
+            const sk = msg.params?.sessionKey as string;
+
+            // Send intermediate chat.update with state "streaming" — should NOT resolve
+            setTimeout(() => {
+              ws.send(JSON.stringify({
+                type: "event",
+                event: "chat.update",
+                payload: { sessionKey: sk, state: "streaming", partial: "thinking..." },
+              }));
+            }, 20);
+
+            // Then send final
+            setTimeout(() => {
+              ws.send(JSON.stringify({
+                type: "event",
+                event: "chat",
+                payload: {
+                  sessionKey: sk,
+                  state: "final",
+                  messages: [{ role: "assistant", content: "done!" }],
+                },
+              }));
+            }, 60);
+          }
+        });
+      });
+
+      gateway = { wss, connections, close: () => new Promise<void>((r) => {
+        for (const ws of connections) if (ws.readyState === WebSocket.OPEN) ws.close();
+        wss.close(() => r());
+      })};
+
+      handler = new A2AHandler({ gatewayUrl: `ws://127.0.0.1:${port}`, store });
+
+      const result = await handler.handleTaskSend({ message: makeMessage("think first") });
+      const task = result as A2ATask;
+
+      // Should have waited for "final", not resolved on "streaming"
+      expect(task.status.state).toBe("completed");
+      expect(task.artifacts![0].parts[0].text).toBe("done!");
+    });
   });
 
   describe("getTask", () => {
     it("returns undefined for unknown task id", () => {
       handler = new A2AHandler({ store });
       expect(handler.getTask("nonexistent")).toBeUndefined();
+    });
+
+    it("returns undefined when no store is configured", () => {
+      handler = new A2AHandler({}); // no store
+      expect(handler.getTask("any-id")).toBeUndefined();
     });
   });
 });
