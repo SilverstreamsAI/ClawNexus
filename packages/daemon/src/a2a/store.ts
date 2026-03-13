@@ -21,6 +21,7 @@ export class A2ATaskStore {
   private readonly tasks = new Map<string, A2ATask>();
   private readonly filePath: string;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
+  private flushInProgress: Promise<void> | null = null;
   private dirty = false;
 
   constructor(configDir?: string) {
@@ -64,6 +65,10 @@ export class A2ATaskStore {
       clearTimeout(this.flushTimer);
       this.flushTimer = null;
     }
+    // Wait for any in-progress timer-based flush before deciding whether to flush again
+    if (this.flushInProgress) {
+      await this.flushInProgress;
+    }
     if (this.dirty) {
       await this.flushNow();
     }
@@ -86,7 +91,9 @@ export class A2ATaskStore {
     if (this.flushTimer) return;
     this.flushTimer = setTimeout(() => {
       this.flushTimer = null;
-      void this.flushNow();
+      this.flushInProgress = this.flushNow().finally(() => {
+        this.flushInProgress = null;
+      });
     }, DEBOUNCE_MS);
   }
 
