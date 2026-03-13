@@ -7,6 +7,8 @@
 
 **Identity registry for AI agents** — discover, name, and connect OpenClaw instances across networks.
 
+> **The original ClawNexus** — [on npm since March 1, 2026](https://www.npmjs.com/package/clawnexus)
+
 ClawNexus fills the "naming layer" gap in the OpenClaw ecosystem: instance naming, multi-instance management, and instance-to-instance communication.
 
 ## What It Does
