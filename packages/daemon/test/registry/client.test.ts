@@ -96,6 +96,79 @@ describe("RegistryClient", () => {
       await expect(client.register({ claw_id: "taken" })).rejects.toThrow(RegistryError);
       expect(fetchSpy).toHaveBeenCalledOnce();
     });
+
+    it("includes metadata in register payload when provided", async () => {
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({
+          action: "registered",
+          record: { name: "test.id.claw" },
+        }),
+      });
+
+      await client.register({
+        claw_id: "test",
+        metadata: {
+          software_version: "0.3.1",
+          uptime_hours: 12.5,
+          os_platform: "linux",
+          instance_count: 2,
+        },
+      });
+
+      const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+      expect(body.payload.metadata).toEqual({
+        software_version: "0.3.1",
+        uptime_hours: 12.5,
+        os_platform: "linux",
+        instance_count: 2,
+      });
+    });
+
+    it("includes agent_card in register payload when provided", async () => {
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({
+          action: "registered",
+          record: { name: "test.id.claw" },
+        }),
+      });
+
+      await client.register({
+        claw_id: "test",
+        agent_card: {
+          skills_count: 3,
+          skills: ["web-search", "code-gen", "translate"],
+          card_url: "http://localhost:18789/.well-known/agent-card.json",
+        },
+      });
+
+      const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+      expect(body.payload.agent_card).toEqual({
+        skills_count: 3,
+        skills: ["web-search", "code-gen", "translate"],
+        card_url: "http://localhost:18789/.well-known/agent-card.json",
+      });
+    });
+
+    it("omits metadata and agent_card from payload when not provided", async () => {
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({
+          action: "registered",
+          record: { name: "test.id.claw" },
+        }),
+      });
+
+      await client.register({ claw_id: "test" });
+
+      const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+      expect(body.payload.metadata).toBeUndefined();
+      expect(body.payload.agent_card).toBeUndefined();
+    });
   });
 
   describe("resolve", () => {

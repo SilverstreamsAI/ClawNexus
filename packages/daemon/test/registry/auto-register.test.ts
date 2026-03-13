@@ -244,6 +244,179 @@ describe("AutoRegister", () => {
     expect(fetchSpy).toHaveBeenCalledTimes(22);
   });
 
+  it("sends metadata in register payload", async () => {
+    const record = {
+      id: 1,
+      name: "test-agent.id.claw",
+      clawId: "test-agent",
+      ownerPubkey: `ed25519:${keys.publicKeyHex}`,
+      tier: "free",
+      capabilities: [],
+      relayHint: null,
+      visibility: "public",
+      registeredAt: new Date().toISOString(),
+      expiresAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => ({ action: "registered", record }),
+    });
+
+    const selfInstance = makeInstance({
+      agent_id: "test-agent",
+      address: "127.0.0.1",
+      gateway_port: 18789,
+      is_self: true,
+    });
+    store.upsert(selfInstance);
+
+    const client = new RegistryClient(keys, "http://mock:3000");
+    const probe = makeLocalProbe("test-agent");
+    const ar = new AutoRegister(client, store, probe as never, keys, "0.4.0");
+
+    await ar.tryRegister();
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    const meta = body.payload.metadata;
+    expect(meta.software_version).toBe("0.4.0");
+    expect(meta.os_platform).toBe(os.platform());
+    expect(meta.instance_count).toBe(1);
+    expect(typeof meta.uptime_hours).toBe("number");
+    expect(meta.uptime_hours).toBeGreaterThanOrEqual(0);
+  });
+
+  it("sends agent_card summary when getCardSummary returns data", async () => {
+    const record = {
+      id: 1,
+      name: "test-agent.id.claw",
+      clawId: "test-agent",
+      ownerPubkey: `ed25519:${keys.publicKeyHex}`,
+      tier: "free",
+      capabilities: [],
+      relayHint: null,
+      visibility: "public",
+      registeredAt: new Date().toISOString(),
+      expiresAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => ({ action: "registered", record }),
+    });
+
+    const selfInstance = makeInstance({
+      agent_id: "test-agent",
+      address: "127.0.0.1",
+      gateway_port: 18789,
+      is_self: true,
+    });
+    store.upsert(selfInstance);
+
+    const client = new RegistryClient(keys, "http://mock:3000");
+    const probe = makeLocalProbe("test-agent");
+    const cardSummary = {
+      skills_count: 2,
+      skills: ["web-search", "translate"],
+    };
+    const ar = new AutoRegister(
+      client, store, probe as never, keys, "0.4.0",
+      () => cardSummary,
+    );
+
+    await ar.tryRegister();
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(body.payload.agent_card).toEqual(cardSummary);
+  });
+
+  it("omits agent_card when getCardSummary returns null", async () => {
+    const record = {
+      id: 1,
+      name: "test-agent.id.claw",
+      clawId: "test-agent",
+      ownerPubkey: `ed25519:${keys.publicKeyHex}`,
+      tier: "free",
+      capabilities: [],
+      relayHint: null,
+      visibility: "public",
+      registeredAt: new Date().toISOString(),
+      expiresAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => ({ action: "registered", record }),
+    });
+
+    const selfInstance = makeInstance({
+      agent_id: "test-agent",
+      address: "127.0.0.1",
+      gateway_port: 18789,
+      is_self: true,
+    });
+    store.upsert(selfInstance);
+
+    const client = new RegistryClient(keys, "http://mock:3000");
+    const probe = makeLocalProbe("test-agent");
+    const ar = new AutoRegister(
+      client, store, probe as never, keys, "0.4.0",
+      () => null,
+    );
+
+    await ar.tryRegister();
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(body.payload.agent_card).toBeUndefined();
+  });
+
+  it("defaults daemonVersion to 'unknown' when not provided", async () => {
+    const record = {
+      id: 1,
+      name: "test-agent.id.claw",
+      clawId: "test-agent",
+      ownerPubkey: `ed25519:${keys.publicKeyHex}`,
+      tier: "free",
+      capabilities: [],
+      relayHint: null,
+      visibility: "public",
+      registeredAt: new Date().toISOString(),
+      expiresAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => ({ action: "registered", record }),
+    });
+
+    const selfInstance = makeInstance({
+      agent_id: "test-agent",
+      address: "127.0.0.1",
+      gateway_port: 18789,
+      is_self: true,
+    });
+    store.upsert(selfInstance);
+
+    const client = new RegistryClient(keys, "http://mock:3000");
+    const probe = makeLocalProbe("test-agent");
+    // No daemonVersion or getCardSummary — use defaults
+    const ar = new AutoRegister(client, store, probe as never, keys);
+
+    await ar.tryRegister();
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(body.payload.metadata.software_version).toBe("unknown");
+    expect(body.payload.agent_card).toBeUndefined();
+  });
+
   it("start and stop manage timers", async () => {
     const client = new RegistryClient(keys, "http://mock:3000");
     const probe = makeLocalProbe(null);
