@@ -1,7 +1,7 @@
 ---
 name: clawnexus
 description: "Discover, name, and manage OpenClaw instances on your LAN. Scan for AI agents, check status, set aliases, resolve .claw names, and get connection URLs via the ClawNexus daemon."
-version: 0.2.7
+version: 0.4.0
 metadata: {"clawdbot": {"emoji": "🦞", "homepage": "https://github.com/SilverstreamsAI/ClawNexus", "requires": {"env": [], "bins": ["curl"]}}}
 ---
 
