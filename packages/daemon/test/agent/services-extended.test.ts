@@ -3,16 +3,13 @@ import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "node:crypto";
 import { SkillsRegistry, DEFAULT_SKILL } from "../../src/agent/services.js";
 
-function getRandomPort(): number {
-  return 30000 + Math.floor(Math.random() * 20000);
-}
-
-function createMockGateway(port: number, opts: {
+function createMockGateway(opts: {
   tools?: Array<Record<string, unknown>>;
   catalogDelay?: number;
   noCatalogResponse?: boolean;
-} = {}): { wss: WebSocketServer; close: () => Promise<void> } {
-  const wss = new WebSocketServer({ port });
+} = {}): { wss: WebSocketServer; port: number; close: () => Promise<void> } {
+  const wss = new WebSocketServer({ port: 0 });
+  const port = (wss.address() as { port: number }).port;
 
   wss.on("connection", (ws) => {
     const nonce = randomUUID();
@@ -62,6 +59,7 @@ function createMockGateway(port: number, opts: {
 
   return {
     wss,
+    port,
     close: () => new Promise<void>((resolve) => wss.close(() => resolve())),
   };
 }
@@ -90,14 +88,13 @@ describe("SkillsRegistry — edge cases", () => {
 
   describe("periodic refresh timer", () => {
     it("start() triggers initial refresh and sets up timer", async () => {
-      const port = getRandomPort();
       let refreshCount = 0;
-      gateway = createMockGateway(port, {
+      gateway = createMockGateway({
         tools: [{ id: "tool1", label: "tool1", description: "A tool" }],
       });
 
       registry = new SkillsRegistry({
-        gatewayUrl: `ws://127.0.0.1:${port}`,
+        gatewayUrl: `ws://127.0.0.1:${gateway.port}`,
         refreshIntervalMs: 200, // Short interval for testing
       });
 
@@ -115,12 +112,11 @@ describe("SkillsRegistry — edge cases", () => {
 
   describe("tool-to-skill conversion edge cases", () => {
     it("handles tools with only id (no label, no name)", async () => {
-      const port = getRandomPort();
-      gateway = createMockGateway(port, {
+      gateway = createMockGateway({
         tools: [{ id: "bare_tool", description: "A bare tool" }],
       });
 
-      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${port}` });
+      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${gateway.port}` });
       await registry.refresh();
 
       const skills = registry.getSkills();
@@ -130,12 +126,11 @@ describe("SkillsRegistry — edge cases", () => {
     });
 
     it("handles tools with name but no id", async () => {
-      const port = getRandomPort();
-      gateway = createMockGateway(port, {
+      gateway = createMockGateway({
         tools: [{ name: "my_special_tool", description: "Special" }],
       });
 
-      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${port}` });
+      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${gateway.port}` });
       await registry.refresh();
 
       const skills = registry.getSkills();
@@ -144,12 +139,11 @@ describe("SkillsRegistry — edge cases", () => {
     });
 
     it("handles tools with no description", async () => {
-      const port = getRandomPort();
-      gateway = createMockGateway(port, {
+      gateway = createMockGateway({
         tools: [{ id: "no_desc" }],
       });
 
-      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${port}` });
+      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${gateway.port}` });
       await registry.refresh();
 
       const skills = registry.getSkills();
@@ -158,12 +152,11 @@ describe("SkillsRegistry — edge cases", () => {
     });
 
     it("label takes priority over name for display", async () => {
-      const port = getRandomPort();
-      gateway = createMockGateway(port, {
+      gateway = createMockGateway({
         tools: [{ id: "tool1", name: "original_name", label: "better_label", description: "Test" }],
       });
 
-      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${port}` });
+      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${gateway.port}` });
       await registry.refresh();
 
       const skills = registry.getSkills();
@@ -173,24 +166,22 @@ describe("SkillsRegistry — edge cases", () => {
 
   describe("tag inference edge cases", () => {
     it("tags 'general' for unrecognized tool names", async () => {
-      const port = getRandomPort();
-      gateway = createMockGateway(port, {
+      gateway = createMockGateway({
         tools: [{ id: "quantum_entangler", label: "quantum_entangler", description: "Entangle qubits" }],
       });
 
-      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${port}` });
+      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${gateway.port}` });
       await registry.refresh();
 
       expect(registry.getSkills()[0].tags).toEqual(["general"]);
     });
 
     it("assigns multiple tags when name matches multiple categories", async () => {
-      const port = getRandomPort();
-      gateway = createMockGateway(port, {
+      gateway = createMockGateway({
         tools: [{ id: "web_file_reader", label: "web_file_reader", description: "Read web files" }],
       });
 
-      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${port}` });
+      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${gateway.port}` });
       await registry.refresh();
 
       const tags = registry.getSkills()[0].tags;
@@ -199,15 +190,14 @@ describe("SkillsRegistry — edge cases", () => {
     });
 
     it("detects media-related tools", async () => {
-      const port = getRandomPort();
-      gateway = createMockGateway(port, {
+      gateway = createMockGateway({
         tools: [
           { id: "draw_image", label: "draw_image", description: "Draw" },
           { id: "vision_analyze", label: "vision_analyze", description: "Analyze" },
         ],
       });
 
-      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${port}` });
+      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${gateway.port}` });
       await registry.refresh();
 
       expect(registry.getSkills()[0].tags).toContain("media");
@@ -215,27 +205,25 @@ describe("SkillsRegistry — edge cases", () => {
     });
 
     it("detects code-related tools", async () => {
-      const port = getRandomPort();
-      gateway = createMockGateway(port, {
+      gateway = createMockGateway({
         tools: [{ id: "run_python", label: "run_python", description: "Execute Python" }],
       });
 
-      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${port}` });
+      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${gateway.port}` });
       await registry.refresh();
 
       expect(registry.getSkills()[0].tags).toContain("code");
     });
 
     it("detects network-related tools", async () => {
-      const port = getRandomPort();
-      gateway = createMockGateway(port, {
+      gateway = createMockGateway({
         tools: [
           { id: "fetch_url", label: "fetch_url", description: "Fetch a URL" },
           { id: "api_call", label: "api_call", description: "Call an API" },
         ],
       });
 
-      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${port}` });
+      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${gateway.port}` });
       await registry.refresh();
 
       expect(registry.getSkills()[0].tags).toContain("network");
@@ -245,24 +233,22 @@ describe("SkillsRegistry — edge cases", () => {
 
   describe("formatSkillName", () => {
     it("converts snake_case to Title Case", async () => {
-      const port = getRandomPort();
-      gateway = createMockGateway(port, {
+      gateway = createMockGateway({
         tools: [{ id: "my_great_tool", label: "my_great_tool", description: "Test" }],
       });
 
-      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${port}` });
+      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${gateway.port}` });
       await registry.refresh();
 
       expect(registry.getSkills()[0].name).toBe("My Great Tool");
     });
 
     it("converts kebab-case to Title Case", async () => {
-      const port = getRandomPort();
-      gateway = createMockGateway(port, {
+      gateway = createMockGateway({
         tools: [{ id: "web-search-v2", label: "web-search-v2", description: "Test" }],
       });
 
-      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${port}` });
+      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${gateway.port}` });
       await registry.refresh();
 
       expect(registry.getSkills()[0].name).toBe("Web Search V2");
@@ -281,12 +267,11 @@ describe("SkillsRegistry — edge cases", () => {
     });
 
     it("emits refreshed event on success", async () => {
-      const port = getRandomPort();
-      gateway = createMockGateway(port, {
+      gateway = createMockGateway({
         tools: [{ id: "tool1", label: "tool1", description: "Tool" }],
       });
 
-      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${port}` });
+      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${gateway.port}` });
 
       const refreshed: any[] = [];
       registry.on("refreshed", (skills: any[]) => refreshed.push(skills));
@@ -299,8 +284,7 @@ describe("SkillsRegistry — edge cases", () => {
 
   describe("getStatus", () => {
     it("skill_count reflects actual skills after refresh", async () => {
-      const port = getRandomPort();
-      gateway = createMockGateway(port, {
+      gateway = createMockGateway({
         tools: [
           { id: "a", label: "a", description: "A" },
           { id: "b", label: "b", description: "B" },
@@ -308,7 +292,7 @@ describe("SkillsRegistry — edge cases", () => {
         ],
       });
 
-      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${port}` });
+      registry = new SkillsRegistry({ gatewayUrl: `ws://127.0.0.1:${gateway.port}` });
       await registry.refresh();
 
       const status = registry.getStatus();
@@ -320,8 +304,8 @@ describe("SkillsRegistry — edge cases", () => {
 
   describe("multiple tool groups", () => {
     it("flattens tools from multiple groups", async () => {
-      const port = getRandomPort();
-      const wss = new WebSocketServer({ port });
+      const wss = new WebSocketServer({ port: 0 });
+      const port = (wss.address() as { port: number }).port;
 
       wss.on("connection", (ws) => {
         ws.send(JSON.stringify({

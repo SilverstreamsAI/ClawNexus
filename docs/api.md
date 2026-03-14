@@ -551,3 +551,10 @@ curl -s http://localhost:17890/a2a \
 | `-32602` | Invalid params (missing message/parts) |
 | `-32005` | Too many concurrent tasks (max: 5) |
 | `-32001` | Task not found |
+
+**Implementation Notes:**
+
+- **Persistent connection**: The daemon maintains a single WebSocket connection to the local OpenClaw Gateway, shared across all concurrent tasks via session key multiplexing.
+- **Task timeout**: Each task times out after 60 seconds if no response is received from the Gateway.
+- **Task persistence**: Completed tasks are stored in `~/.clawnexus/a2a-tasks.json` (max 100, FIFO eviction). Tasks survive daemon restarts.
+- **Concurrency limit**: Default 5 simultaneous tasks. The 6th task receives an immediate `-32005` error (not queued).

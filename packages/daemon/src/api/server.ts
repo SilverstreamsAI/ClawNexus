@@ -671,11 +671,15 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     console.log("[clawnexus] [WireGuard] No WireGuard interfaces detected");
   }
 
+  const daemonPkg = JSON.parse(
+    readFileSync(join(__dirname, "../../package.json"), "utf-8"),
+  ) as { version: string };
+
   // Health endpoint with component status
   app.get("/health", async () => ({
     status: "ok",
     service: "clawnexus-daemon",
-    version: "0.3.1",
+    version: daemonPkg.version,
     timestamp: new Date().toISOString(),
     components: {
       registry: { instances: store.size },
@@ -731,9 +735,6 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
   });
 
   // A2A Agent Card + JSON-RPC routes
-  const daemonPkg = JSON.parse(
-    readFileSync(join(__dirname, "../../package.json"), "utf-8"),
-  ) as { version: string };
   const a2aTaskStore = new A2ATaskStore();
   await a2aTaskStore.init();
   const a2aHandler = new A2AHandler({ store: a2aTaskStore });
