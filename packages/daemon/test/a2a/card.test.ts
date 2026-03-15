@@ -90,4 +90,111 @@ describe("buildAgentCard", () => {
     const card = buildAgentCard(inst, VERSION);
     expect(card.provider.name).toBe("ClawNexus");
   });
+
+  describe("remote_card integration", () => {
+    it("prefers remote_card.skills over skills param", () => {
+      const inst = makeInstance({
+        remote_card: {
+          skills: [{ id: "remote_tool", name: "Remote Tool", description: "From remote", tags: [] }],
+          card_url: "http://192.168.1.10:17890/.well-known/agent-card.json",
+          fetched_at: new Date().toISOString(),
+        },
+      });
+      const localSkills = [
+        { id: "local_tool", name: "Local Tool", description: "Local", tags: ["general"] },
+      ];
+      const card = buildAgentCard(inst, VERSION, localSkills);
+      expect(card.skills).toHaveLength(1);
+      expect(card.skills[0].id).toBe("remote_tool");
+    });
+
+    it("falls back to skills param when remote_card.skills is empty", () => {
+      const inst = makeInstance({
+        remote_card: {
+          skills: [],
+          card_url: "http://192.168.1.10:17890/.well-known/agent-card.json",
+          fetched_at: new Date().toISOString(),
+        },
+      });
+      const localSkills = [
+        { id: "local_tool", name: "Local Tool", description: "Local", tags: ["general"] },
+      ];
+      const card = buildAgentCard(inst, VERSION, localSkills);
+      expect(card.skills).toHaveLength(1);
+      expect(card.skills[0].id).toBe("local_tool");
+    });
+
+    it("falls back to DEFAULT_SKILL when remote_card.skills is empty and no param", () => {
+      const inst = makeInstance({
+        remote_card: {
+          skills: [],
+          card_url: "http://192.168.1.10:17890/.well-known/agent-card.json",
+          fetched_at: new Date().toISOString(),
+        },
+      });
+      const card = buildAgentCard(inst, VERSION);
+      expect(card.skills).toHaveLength(1);
+      expect(card.skills[0].id).toBe("general-assistant");
+    });
+
+    it("uses capabilities from remote_card", () => {
+      const inst = makeInstance({
+        remote_card: {
+          skills: [{ id: "t", name: "T", description: "", tags: [] }],
+          capabilities: { streaming: true, pushNotifications: true, stateTransitionHistory: false },
+          card_url: "http://192.168.1.10:17890/.well-known/agent-card.json",
+          fetched_at: new Date().toISOString(),
+        },
+      });
+      const card = buildAgentCard(inst, VERSION);
+      expect(card.capabilities.streaming).toBe(true);
+      expect(card.capabilities.pushNotifications).toBe(true);
+      expect(card.capabilities.stateTransitionHistory).toBe(false);
+    });
+
+    it("treats missing capability fields in remote_card as false", () => {
+      const inst = makeInstance({
+        remote_card: {
+          skills: [{ id: "t", name: "T", description: "", tags: [] }],
+          capabilities: {},
+          card_url: "http://192.168.1.10:17890/.well-known/agent-card.json",
+          fetched_at: new Date().toISOString(),
+        },
+      });
+      const card = buildAgentCard(inst, VERSION);
+      expect(card.capabilities).toEqual({
+        streaming: false,
+        pushNotifications: false,
+        stateTransitionHistory: false,
+      });
+    });
+
+    it("uses input/output modes from remote_card", () => {
+      const inst = makeInstance({
+        remote_card: {
+          skills: [{ id: "t", name: "T", description: "", tags: [] }],
+          input_modes: ["text/plain", "image/png"],
+          output_modes: ["text/markdown"],
+          card_url: "http://192.168.1.10:17890/.well-known/agent-card.json",
+          fetched_at: new Date().toISOString(),
+        },
+      });
+      const card = buildAgentCard(inst, VERSION);
+      expect(card.defaultInputModes).toEqual(["text/plain", "image/png"]);
+      expect(card.defaultOutputModes).toEqual(["text/markdown"]);
+    });
+
+    it("defaults to text/plain when remote_card has no input/output modes", () => {
+      const inst = makeInstance({
+        remote_card: {
+          skills: [{ id: "t", name: "T", description: "", tags: [] }],
+          card_url: "http://192.168.1.10:17890/.well-known/agent-card.json",
+          fetched_at: new Date().toISOString(),
+        },
+      });
+      const card = buildAgentCard(inst, VERSION);
+      expect(card.defaultInputModes).toEqual(["text/plain"]);
+      expect(card.defaultOutputModes).toEqual(["text/plain"]);
+    });
+  });
 });

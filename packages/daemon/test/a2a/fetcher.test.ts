@@ -286,6 +286,73 @@ describe("CardFetcher", () => {
     });
   });
 
+  describe("stop() behavior", () => {
+    it("upsert events are ignored after stop()", async () => {
+      const fetchSpy = vi.spyOn(fetcher, "fetchCard").mockResolvedValue(null);
+      fetcher.start();
+      fetcher.stop();
+
+      const inst = makeInstance({ address: "192.168.1.90" });
+      store.upsert(inst);
+
+      await new Promise((r) => setTimeout(r, 50));
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("events", () => {
+    it("emits card_fetched event on successful fetch", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          name: "bot",
+          skills: [{ id: "s1", name: "S1", description: "d", tags: ["general"] }],
+          capabilities: { streaming: false, pushNotifications: false, stateTransitionHistory: false },
+          defaultInputModes: ["text/plain"],
+          defaultOutputModes: ["text/plain"],
+        }),
+      });
+
+      const events: unknown[] = [];
+      fetcher.on("card_fetched", (e) => events.push(e));
+
+      try {
+        fetcher.start();
+        const inst = makeInstance({ address: "192.168.1.95" });
+        store.upsert(inst);
+
+        await new Promise((r) => setTimeout(r, 200));
+        expect(events).toHaveLength(1);
+        expect((events[0] as { skills_count: number }).skills_count).toBe(1);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    it("emits card_error event when fetchAndApply throws", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error("unexpected error"));
+
+      // Override fetchCard to throw (not return null)
+      vi.spyOn(fetcher, "fetchCard").mockRejectedValue(new Error("unexpected error"));
+
+      const errors: unknown[] = [];
+      fetcher.on("card_error", (e) => errors.push(e));
+
+      try {
+        fetcher.start();
+        const inst = makeInstance({ address: "192.168.1.96" });
+        store.upsert(inst);
+
+        await new Promise((r) => setTimeout(r, 200));
+        expect(errors).toHaveLength(1);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+  });
+
   describe("refreshAll", () => {
     it("only refreshes stale cards", async () => {
       const originalFetch = globalThis.fetch;
