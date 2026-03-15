@@ -6,6 +6,9 @@ coverage/
 .env.*
 !.env.example
 
+# clawhub cache
+.clawhub/
+
 # scratch / local-only
 1.md
 1.txt
