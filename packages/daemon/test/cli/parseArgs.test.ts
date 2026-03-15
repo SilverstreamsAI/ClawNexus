@@ -89,4 +89,34 @@ describe("parseArgs", () => {
     expect(args.json).toBe(true);
     expect(args.timeout).toBe(3000);
   });
+
+  it("parses open-ui command", () => {
+    const args = parseArgs(["open-ui"]);
+    expect(args.command).toBe("open-ui");
+    expect(args.positional).toEqual([]);
+  });
+
+  it("parses open-ui with --api override", () => {
+    const args = parseArgs(["open-ui", "--api", "http://remote:17890"]);
+    expect(args.command).toBe("open-ui");
+    expect(args.api).toBe("http://remote:17890");
+  });
+
+  it("parses --scope flag", () => {
+    const args = parseArgs(["list", "--scope", "vpn"]);
+    expect(args.command).toBe("list");
+    expect(args.scope).toBe("vpn");
+  });
+
+  it("parses --target flag (repeatable)", () => {
+    const args = parseArgs(["scan", "--target", "192.168.1.1:18789", "--target", "10.0.0.1:18789"]);
+    expect(args.command).toBe("scan");
+    expect(args.targets).toEqual(["192.168.1.1:18789", "10.0.0.1:18789"]);
+  });
+
+  it("parses --ports flag (comma-separated)", () => {
+    const args = parseArgs(["scan", "--ports", "18789,18790"]);
+    expect(args.command).toBe("scan");
+    expect(args.ports).toEqual([18789, 18790]);
+  });
 });

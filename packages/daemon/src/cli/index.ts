@@ -1114,6 +1114,31 @@ async function cmdInteractions(args: ParsedArgs): Promise<void> {
   }
 }
 
+async function cmdOpenUi(args: ParsedArgs): Promise<void> {
+  const url = `${args.api}/ui/`;
+
+  // Check if daemon is running
+  const { ok } = await fetchApi(args.api, "GET", "/health", undefined, 2000);
+  if (!ok) {
+    console.error("ClawNexus daemon is not running. Start it with 'clawnexus start'.");
+    process.exit(1);
+  }
+
+  const { exec } = await import("node:child_process");
+  const platform = process.platform;
+  const cmd =
+    platform === "darwin" ? "open" :
+    platform === "win32" ? "start" :
+    "xdg-open";
+
+  exec(`${cmd} ${url}`, (err) => {
+    if (err) {
+      console.error(`Failed to open browser: ${err.message}`);
+    }
+    console.log(`Dashboard: ${url}`);
+  });
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
 
@@ -1187,6 +1212,9 @@ async function main(): Promise<void> {
     case "interactions":
       await cmdInteractions(args);
       break;
+    case "open-ui":
+      await cmdOpenUi(args);
+      break;
     default:
       console.log("ClawNexus CLI v0.2.0");
       console.log("");
@@ -1219,6 +1247,7 @@ async function main(): Promise<void> {
       console.log("Connection:");
       console.log("  connect <name>     Smart connect (LAN direct or relay fallback)");
       console.log("  open <name>        Open instance WebChat in browser");
+      console.log("  open-ui            Open ClawNexus dashboard in browser");
       console.log("  relay status       Show relay connection status");
       console.log("  diagnostics        Show connectivity diagnostics");
       console.log("");

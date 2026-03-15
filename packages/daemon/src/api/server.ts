@@ -2,6 +2,7 @@
 // Routes: GET /health, instance management, relay routes (v0.4), agent routes (v1.0)
 
 import Fastify from "fastify";
+import fastifyStatic from "@fastify/static";
 import type { FastifyInstance } from "fastify";
 import { RegistryStore, AliasConflictError, AliasError, NotFoundError } from "../registry/store.js";
 import { MdnsListener } from "../mdns/listener.js";
@@ -31,7 +32,7 @@ import { A2ATaskStore } from "../a2a/store.js";
 import type { A2ARequest, A2AResponse, A2AError } from "../a2a/types.js";
 import { JSON_RPC_PARSE_ERROR, JSON_RPC_INVALID_REQUEST, JSON_RPC_METHOD_NOT_FOUND } from "../a2a/types.js";
 import { SkillsRegistry } from "../agent/services.js";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 
 const PORT = parseInt(process.env.CLAWNEXUS_PORT ?? "17890", 10);
@@ -650,6 +651,20 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
 
   // 8. Create and configure Fastify app
   const app = Fastify({ logger: false });
+
+  // Mount dashboard static files at /ui/
+  const dashboardPath = join(__dirname, "../../../dashboard/dist");
+  if (existsSync(dashboardPath) && statSync(dashboardPath).isDirectory()) {
+    await app.register(fastifyStatic, {
+      root: dashboardPath,
+      prefix: "/ui/",
+      decorateReply: false,
+    });
+    app.get("/ui", async (_request, reply) => {
+      reply.redirect("/ui/");
+    });
+    console.log(`[clawnexus] [Dashboard] Serving at /ui/ from ${dashboardPath}`);
+  }
 
   // Log WireGuard detection results to stdout (captured in daemon.log)
   if (wgInfo.interfaces.length > 0) {
