@@ -9,7 +9,7 @@
 
 > **The original ClawNexus** — [on npm since March 1, 2026](https://www.npmjs.com/package/clawnexus)
 
-ClawNexus fills the "naming layer" gap in the OpenClaw ecosystem: instance naming, multi-instance management, and instance-to-instance communication.
+ClawNexus is an identity registry for OpenClaw instances. It discovers AI agent instances on the network, gives each one a persistent name, and tracks capabilities, trust scores, and online status.
 
 ## What It Does
 
@@ -45,7 +45,7 @@ Four discovery chains feed into a unified registry — no OpenClaw configuration
 │                         │                                       │
 │  ┌──────────────────────▼──────────────────────────────────┐   │
 │  │              Relay Connector (WSS)                        │   │
-│  │          cross-network encrypted tunnels                  │   │
+│  │         end-to-end encrypted relay (WSS)                  │   │
 │  └─────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
         ▲                                      ▲
@@ -60,7 +60,7 @@ Four discovery chains feed into a unified registry — no OpenClaw configuration
 |-------|-----------|----------------------|----------|
 | **LocalProbe** | HTTP probe `127.0.0.1:18789` | No | Discovers local instance |
 | **CDP** | UDP broadcast on port 17891 | No | Two daemons find each other on the same subnet |
-| **mDNS** | Listens for `_openclaw-gw._tcp.local` | Yes (`--bind lan`) | Discovers mDNS-advertising instances |
+| **mDNS** | Listens for `_openclaw-gw._tcp.local` ([RFC 6762](https://www.rfc-editor.org/rfc/rfc6762)) | Yes (`--bind lan`) | Discovers mDNS-advertising instances |
 | **ActiveScanner** | HTTP scan for control-ui-config | Yes (reachable bind) | `clawnexus scan --target <ip>` |
 
 ## Packages
@@ -105,6 +105,33 @@ See [docs/quickstart.md](./docs/quickstart.md) for a complete walkthrough.
 - [Quick Start Guide](./docs/quickstart.md)
 - [HTTP API Reference](./docs/api.md)
 - [Architecture Overview](./docs/architecture.md)
+
+## FAQ
+
+**What is ClawNexus?**
+An identity registry for OpenClaw instances — it discovers instances on your network, gives each one a persistent name, and tracks capabilities, trust scores, and online status.
+
+**How does discovery work?**
+Four methods run in parallel: LocalProbe checks localhost, CDP broadcasts on the subnet, [mDNS](https://www.rfc-editor.org/rfc/rfc6762) listens for advertising instances, and ActiveScanner does HTTP probes. No OpenClaw configuration needed for the first two.
+
+**Does it work across networks?**
+Yes. Instances get `.claw` domains (e.g. `home.alan.id.claw`) and communicate through an end-to-end encrypted relay using X25519 key exchange and AES-256-GCM. The relay cannot read your data.
+
+**How is this different from Tailscale?**
+Tailscale gives you network connectivity. ClawNexus gives you instance identity — who's running, what they can do, whether they're online. They're complementary: Tailscale handles the pipe, ClawNexus handles the registry.
+
+**Does it work with Google A2A?**
+ClawNexus can generate A2A Agent Cards from registry data, making your OpenClaw instances discoverable via the [Agent-to-Agent protocol](https://github.com/google/A2A).
+
+## Comparison
+
+| | ClawNexus | Manual Config | Tailscale | mDNS only |
+|---|-----------|--------------|-----------|-----------|
+| Zero-config LAN discovery | ✅ | ❌ | ❌ | ✅ |
+| Cross-network | ✅ (.claw domains) | ✅ (manual) | ✅ | ❌ |
+| Identity and naming | ✅ | ❌ | ❌ | ❌ |
+| E2E encryption | ✅ | ❌ | ✅ | ❌ |
+| Capability tracking | ✅ | ❌ | ❌ | ❌ |
 
 ## Development
 
