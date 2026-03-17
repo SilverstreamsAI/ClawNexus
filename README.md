@@ -3,7 +3,7 @@
 [![npm](https://img.shields.io/npm/v/clawnexus)](https://www.npmjs.com/package/clawnexus)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen)](https://nodejs.org/)
-[![Tests](https://img.shields.io/badge/tests-609%20passing-brightgreen)](#)
+[![CI](https://github.com/SilverstreamsAI/ClawNexus/actions/workflows/ci.yml/badge.svg)](https://github.com/SilverstreamsAI/ClawNexus/actions/workflows/ci.yml)
 
 **Identity registry for AI agents** — discover, name, and connect OpenClaw instances across networks.
 
@@ -161,7 +161,7 @@ cd packages/daemon && pnpm dev
 | v0.4 | Relay service for cross-network connections | ✅ Done |
 | v0.5 | Registrar API (reseller layer) | Planned |
 | v0.6 | Trust layer (reputation + capability verification) | Planned |
-| v1.0 | Layer B — autonomous agent-to-agent interaction | ✅ Done |
+| v1.0 | Layer B — autonomous agent-to-agent interaction | Planned |
 
 ## License
 

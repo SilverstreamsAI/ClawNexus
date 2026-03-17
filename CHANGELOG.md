@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-03-14
+
+### Added
+- A2A (Agent-to-Agent) JSON-RPC endpoint (`POST /a2a`) for task handling
+- Persistent gateway connection with task store and concurrency limit
+- Remote Agent Card fetching from discovered instances
+- Registry metadata and agent card summary sent on register/renew
+- Embedded Web UI dashboard for daemon
+- Cross-network E2E relay validation script
+
+### Fixed
+- Concurrent `flushNow()` race condition in A2ATaskStore
+- CardFetcher double-start prevention
+- Relay error handling and debug logging
+
+## [0.3.1] - 2026-03-10
+
+### Fixed
+- Auto-register falls back to `auto_name` when agentId-based names are exhausted
+- Agent request timeout, task timeout basis, rate cleanup, and NaN expiry
+- Executor `scheduleReconnect` now triggers when tasks are queued but not executing
+- Task state transitions, token refresh, and error handling
+
+### Changed
+- Bumped all packages to 0.3.1
+
+## [0.3.0] - 2026-03-09
+
+### Added
+- Agent Card generation and `/.well-known/agent-card.json` endpoint
+- TaskExecutor for inbound task execution
+- SkillsRegistry and Gateway v3 protocol support
+- Relay connector hot-swap
+
+### Changed
+- Refactored OpenClaw/OpenFang adapters; made core components adapter-aware
+- Bumped all packages to 0.3.0
+
 ## [0.2.8] - 2026-03-08
 
 ### Added
