@@ -1,0 +1,54 @@
+{
+  "name": "@clawnexus/mcp-server",
+  "version": "0.4.0",
+  "description": "ClawNexus MCP Server — lets AI agents manage OpenClaw instances via Model Context Protocol",
+  "license": "MIT",
+  "author": "alan-silverstreams <alan@silverstream.tech>",
+  "homepage": "https://github.com/SilverstreamsAI/ClawNexus",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SilverstreamsAI/ClawNexus.git",
+    "directory": "packages/mcp"
+  },
+  "bugs": "https://github.com/SilverstreamsAI/ClawNexus/issues",
+  "keywords": [
+    "openclaw",
+    "ai",
+    "agent",
+    "mcp",
+    "model-context-protocol",
+    "clawnexus",
+    "clawlink"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "clawnexus-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0",
+    "vitest": "^4.0.0"
+  }
+}

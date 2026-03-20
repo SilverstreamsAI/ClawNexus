@@ -1,2 +1,2 @@
 import { defineWorkspace } from 'vitest/config';
-export default defineWorkspace(['packages/daemon', 'packages/sdk', 'packages/skill', 'packages/plugin']);
+export default defineWorkspace(['packages/daemon', 'packages/sdk', 'packages/skill', 'packages/plugin', 'packages/mcp']);
