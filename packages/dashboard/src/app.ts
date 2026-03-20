@@ -33,7 +33,15 @@ function Nav({ page, version }: { page: Page; version: string }) {
   `;
 }
 
-function Toast({ message, type, onDone }: { message: string; type: "ok" | "err"; onDone: () => void }) {
+function Toast({
+  message,
+  type,
+  onDone,
+}: {
+  message: string;
+  type: "ok" | "err";
+  onDone: () => void;
+}) {
   useEffect(() => {
     const t = setTimeout(onDone, 3000);
     return () => clearTimeout(t);
@@ -57,7 +65,10 @@ function App() {
   }, []);
 
   useEffect(() => {
-    api.getHealth().then((h: HealthResponse) => setVersion(h.version)).catch(() => {});
+    api
+      .getHealth()
+      .then((h: HealthResponse) => setVersion(h.version))
+      .catch(() => {});
   }, []);
 
   const pageComponent = {
@@ -70,7 +81,8 @@ function App() {
   return html`
     <${Nav} page=${page} version=${version} />
     <main>${pageComponent}</main>
-    ${toast && html`<${Toast} message=${toast.message} type=${toast.type} onDone=${() => setToast(null)} />`}
+    ${toast &&
+    html`<${Toast} message=${toast.message} type=${toast.type} onDone=${() => setToast(null)} />`}
   `;
 }
 

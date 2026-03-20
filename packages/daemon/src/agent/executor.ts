@@ -138,8 +138,14 @@ export class TaskExecutor extends EventEmitter {
     if (this.gwState === "connecting") {
       // Already in progress — wait
       return new Promise((resolve) => {
-        const onReady = () => { cleanup(); resolve(true); };
-        const onError = () => { cleanup(); resolve(false); };
+        const onReady = () => {
+          cleanup();
+          resolve(true);
+        };
+        const onError = () => {
+          cleanup();
+          resolve(false);
+        };
         const cleanup = () => {
           this.off("gw:ready", onReady);
           this.off("gw:error", onError);
@@ -215,7 +221,10 @@ export class TaskExecutor extends EventEmitter {
         // Find which task sent this request
         for (const [, exec] of this.executing) {
           if (exec.requestId === id) {
-            this.handleTaskError(exec.sessionKey, (error?.message as string) ?? "Gateway request error");
+            this.handleTaskError(
+              exec.sessionKey,
+              (error?.message as string) ?? "Gateway request error",
+            );
             break;
           }
         }
@@ -242,7 +251,9 @@ export class TaskExecutor extends EventEmitter {
     if (!execEntry) return;
 
     if (event === "chat" || event === "chat.update") {
-      const state = (payload?.state as string) ?? (msg.data as Record<string, unknown>)?.state as string | undefined;
+      const state =
+        (payload?.state as string) ??
+        ((msg.data as Record<string, unknown>)?.state as string | undefined);
       if (state === "final") {
         this.handleTaskFinal(execEntry, msg);
       } else if (state === "error") {
@@ -305,7 +316,14 @@ export class TaskExecutor extends EventEmitter {
         this.tasks.updateState(taskId, "failed", { error: errorMsg });
 
         if (task?.room_id && task.peer_claw_id && this.router) {
-          this.router.sendReport(task.room_id, task.peer_claw_id, taskId, "failed", undefined, errorMsg);
+          this.router.sendReport(
+            task.room_id,
+            task.peer_claw_id,
+            taskId,
+            "failed",
+            undefined,
+            errorMsg,
+          );
         }
 
         this.executing.delete(taskId);
@@ -322,14 +340,14 @@ export class TaskExecutor extends EventEmitter {
     if (this.draining) return;
     this.draining = true;
     try {
-    while (this.queue.length > 0 && this.executing.size < this.maxConcurrent && !this.closed) {
-      const taskId = this.queue.shift()!;
-      const task = this.tasks.getById(taskId);
-      if (!task || task.state !== "accepted" || task.direction !== "inbound") {
-        continue; // Skip stale entries
+      while (this.queue.length > 0 && this.executing.size < this.maxConcurrent && !this.closed) {
+        const taskId = this.queue.shift()!;
+        const task = this.tasks.getById(taskId);
+        if (!task || task.state !== "accepted" || task.direction !== "inbound") {
+          continue; // Skip stale entries
+        }
+        await this.executeTask(task);
       }
-      await this.executeTask(task);
-    }
     } finally {
       this.draining = false;
     }
@@ -338,17 +356,27 @@ export class TaskExecutor extends EventEmitter {
   private async executeTask(task: TaskRecord): Promise<void> {
     const connected = await this.ensureConnection();
     if (!connected || !this.gwConn || this.gwConn.ws.readyState !== WebSocket.OPEN) {
-      console.log(`[clawnexus] [Executor] Cannot execute task ${task.task_id}: gateway not available`);
+      console.log(
+        `[clawnexus] [Executor] Cannot execute task ${task.task_id}: gateway not available`,
+      );
       this.tasks.updateState(task.task_id, "failed", { error: "OpenClaw Gateway not available" });
       if (task.room_id && task.peer_claw_id && this.router) {
-        this.router.sendReport(task.room_id, task.peer_claw_id, task.task_id, "failed", undefined, "OpenClaw Gateway not available");
+        this.router.sendReport(
+          task.room_id,
+          task.peer_claw_id,
+          task.task_id,
+          "failed",
+          undefined,
+          "OpenClaw Gateway not available",
+        );
       }
       this.emit("task:failed", task.task_id, "Gateway not available");
       return;
     }
 
     const sessionKey = `agent:main:main:dm:clawnexus-task-${task.task_id}`;
-    const message = task.task.description + (task.task.input ? "\n\n" + JSON.stringify(task.task.input) : "");
+    const message =
+      task.task.description + (task.task.input ? "\n\n" + JSON.stringify(task.task.input) : "");
 
     // Transition to executing
     this.tasks.updateState(task.task_id, "executing");
@@ -394,19 +422,28 @@ export class TaskExecutor extends EventEmitter {
 
       // Abort the chat
       if (this.gwConn?.ws?.readyState === WebSocket.OPEN) {
-        this.gwConn.ws.send(JSON.stringify({
-          type: "req",
-          id: randomUUID(),
-          method: "chat.abort",
-          params: { sessionKey },
-        }));
+        this.gwConn.ws.send(
+          JSON.stringify({
+            type: "req",
+            id: randomUUID(),
+            method: "chat.abort",
+            params: { sessionKey },
+          }),
+        );
       }
 
       this.clearTaskTimers(exec);
       this.tasks.updateState(task.task_id, "timeout");
 
       if (task.room_id && task.peer_claw_id && this.router) {
-        this.router.sendReport(task.room_id, task.peer_claw_id, task.task_id, "failed", undefined, "Task execution timed out");
+        this.router.sendReport(
+          task.room_id,
+          task.peer_claw_id,
+          task.task_id,
+          "failed",
+          undefined,
+          "Task execution timed out",
+        );
       }
 
       this.executing.delete(task.task_id);

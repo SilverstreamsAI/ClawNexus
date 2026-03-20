@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import { TaskManager } from "../../src/agent/tasks.js";
 import { TaskExecutor } from "../../src/agent/executor.js";
 import { makeTaskRecord } from "../fixtures.js";
+import type { AgentRouter } from "../../src/agent/router.js";
 
 function getRandomPort(): number {
   return 30000 + Math.floor(Math.random() * 20000);
@@ -170,7 +171,7 @@ describe("TaskExecutor — edge cases", () => {
 
       executor = new TaskExecutor({ tasks, gatewayUrl: `ws://127.0.0.1:${port}`, maxConcurrent: 3 });
       const mockRouter = createMockRouter();
-      executor.setRouter(mockRouter as any);
+      executor.setRouter(mockRouter as unknown as AgentRouter);
 
       tasks.create(makeTaskRecord({
         task_id: "update-1",
@@ -257,7 +258,7 @@ describe("TaskExecutor — edge cases", () => {
 
       executor = new TaskExecutor({ tasks, gatewayUrl: `ws://127.0.0.1:${port}`, maxConcurrent: 3 });
       const mockRouter = createMockRouter();
-      executor.setRouter(mockRouter as any);
+      executor.setRouter(mockRouter as unknown as AgentRouter);
 
       tasks.create(makeTaskRecord({
         task_id: "blocks-1",
@@ -336,7 +337,7 @@ describe("TaskExecutor — edge cases", () => {
 
       executor = new TaskExecutor({ tasks, gatewayUrl: `ws://127.0.0.1:${port}`, maxConcurrent: 3 });
       const mockRouter = createMockRouter();
-      executor.setRouter(mockRouter as any);
+      executor.setRouter(mockRouter as unknown as AgentRouter);
 
       tasks.create(makeTaskRecord({
         task_id: "fallback-1",
@@ -411,7 +412,7 @@ describe("TaskExecutor — edge cases", () => {
 
       executor = new TaskExecutor({ tasks, gatewayUrl: `ws://127.0.0.1:${port}`, maxConcurrent: 3 });
       const mockRouter = createMockRouter();
-      executor.setRouter(mockRouter as any);
+      executor.setRouter(mockRouter as unknown as AgentRouter);
 
       tasks.create(makeTaskRecord({
         task_id: "gw-err-1",

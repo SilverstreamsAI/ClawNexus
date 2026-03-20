@@ -22,8 +22,15 @@ const VERSION = "1.0" as const;
 const DEFAULT_TTL = 300; // 5 minutes
 
 const VALID_TYPES: ReadonlySet<LayerBMessageType> = new Set([
-  "query", "propose", "accept", "reject", "delegate",
-  "report", "cancel", "capability", "heartbeat",
+  "query",
+  "propose",
+  "accept",
+  "reject",
+  "delegate",
+  "report",
+  "cancel",
+  "capability",
+  "heartbeat",
 ]);
 
 export interface EnvelopeOptions {

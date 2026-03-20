@@ -124,16 +124,16 @@ export class BroadcastDiscovery extends EventEmitter {
   private _isVirtualInterface(name: string): boolean {
     const n = name.toLowerCase();
     return (
-      n.startsWith("wg") ||         // WireGuard (Linux): wg0, wg1
-      n.startsWith("tun") ||        // TUN: tun0, OpenVPN
-      n.startsWith("tap") ||        // TAP: tap0, OpenVPN bridge
-      n.includes("wireguard") ||    // WireGuard (Windows): "WireGuard Tunnel"
-      n.startsWith("docker") ||     // Docker: docker0
-      n.startsWith("br-") ||        // Docker bridge
-      n.startsWith("veth") ||       // Docker veth
-      n.startsWith("virbr") ||      // KVM: virbr0
-      n.startsWith("vmnet") ||      // VMware
-      n.startsWith("vboxnet")       // VirtualBox
+      n.startsWith("wg") || // WireGuard (Linux): wg0, wg1
+      n.startsWith("tun") || // TUN: tun0, OpenVPN
+      n.startsWith("tap") || // TAP: tap0, OpenVPN bridge
+      n.includes("wireguard") || // WireGuard (Windows): "WireGuard Tunnel"
+      n.startsWith("docker") || // Docker: docker0
+      n.startsWith("br-") || // Docker bridge
+      n.startsWith("veth") || // Docker veth
+      n.startsWith("virbr") || // KVM: virbr0
+      n.startsWith("vmnet") || // VMware
+      n.startsWith("vboxnet") // VirtualBox
     );
   }
 
@@ -155,7 +155,7 @@ export class BroadcastDiscovery extends EventEmitter {
   _calcBroadcast(ip: string, mask: string): string {
     const ipParts = ip.split(".").map(Number);
     const maskParts = mask.split(".").map(Number);
-    return ipParts.map((b, i) => (b | (~maskParts[i]! & 0xff))).join(".");
+    return ipParts.map((b, i) => b | (~maskParts[i]! & 0xff)).join(".");
   }
 
   private _isSelfIp(ip: string): boolean {
@@ -234,7 +234,9 @@ export class BroadcastDiscovery extends EventEmitter {
       };
       this._sendTo(JSON.stringify(reply), rinfo.address, rinfo.port);
     } else if (data.type === "claw_announce") {
-      this._handleAnnounce(data, rinfo).catch(() => {/* non-fatal */});
+      this._handleAnnounce(data, rinfo).catch(() => {
+        /* non-fatal */
+      });
     }
   }
 

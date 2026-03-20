@@ -38,7 +38,10 @@ export class RegistryStore extends EventEmitter {
         const raw = await fs.promises.readFile(this.registryPath, "utf-8");
         const data: RegistryFile = JSON.parse(raw);
 
-        if ((data.schema_version === "6" || data.schema_version === "5") && Array.isArray(data.instances)) {
+        if (
+          (data.schema_version === "6" || data.schema_version === "5") &&
+          Array.isArray(data.instances)
+        ) {
           // v5/v6: compatible schemas (remote_card is optional), load directly
           for (const inst of data.instances) {
             const key = this.networkKey(inst.address, inst.gateway_port);
@@ -204,7 +207,11 @@ export class RegistryStore extends EventEmitter {
 
       // First discovery: generate auto_name if not already set
       if (!instance.auto_name) {
-        const baseName = generateAutoName(instance.lan_host, instance.display_name, instance.address);
+        const baseName = generateAutoName(
+          instance.lan_host,
+          instance.display_name,
+          instance.address,
+        );
         const usedNames = new Set<string>();
         for (const inst of this.instances.values()) {
           usedNames.add(inst.auto_name);
@@ -235,9 +242,7 @@ export class RegistryStore extends EventEmitter {
     // Check uniqueness
     for (const [key, inst] of this.instances.entries()) {
       if (inst.alias === alias && key !== networkKey) {
-        throw new AliasConflictError(
-          `Alias "${alias}" is already assigned to "${inst.auto_name}"`,
-        );
+        throw new AliasConflictError(`Alias "${alias}" is already assigned to "${inst.auto_name}"`);
       }
     }
 
@@ -326,9 +331,12 @@ export class RegistryStore extends EventEmitter {
   /** Numeric priority for network scope: local > vpn > public */
   private _addressPriority(scope: ClawInstance["network_scope"]): number {
     switch (scope) {
-      case "local": return 2;
-      case "vpn": return 1;
-      case "public": return 0;
+      case "local":
+        return 2;
+      case "vpn":
+        return 1;
+      case "public":
+        return 0;
     }
   }
 

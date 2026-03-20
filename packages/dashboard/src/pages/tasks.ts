@@ -38,7 +38,9 @@ export function TasksPage() {
     }
   };
 
-  useEffect(() => { load(); }, [showAll]);
+  useEffect(() => {
+    load();
+  }, [showAll]);
   useEffect(() => {
     const timer = setInterval(load, 10000);
     return () => clearInterval(timer);
@@ -51,14 +53,20 @@ export function TasksPage() {
       <h1>Tasks</h1>
       <div style="display: flex; gap: 8px; align-items: center;">
         <label style="font-size: 13px; color: var(--text-dim); cursor: pointer;">
-          <input type="checkbox" checked=${showAll} onChange=${() => setShowAll(!showAll)} style="margin-right: 4px;" />
+          <input
+            type="checkbox"
+            checked=${showAll}
+            onChange=${() => setShowAll(!showAll)}
+            style="margin-right: 4px;"
+          />
           Show all
         </label>
         <button onClick=${load}>Refresh</button>
       </div>
     </div>
 
-    ${stats && html`
+    ${stats &&
+    html`
       <div class="stats">
         <div class="stat">
           <div class="stat-value">${stats.total}</div>
@@ -68,12 +76,16 @@ export function TasksPage() {
           <div class="stat-value" style="color: var(--accent)">${stats.active}</div>
           <div class="stat-label">Active</div>
         </div>
-        ${Object.entries(stats.by_state).filter(([, v]) => v > 0).map(([k, v]) => html`
-          <div class="stat">
-            <div class="stat-value">${v}</div>
-            <div class="stat-label">${k}</div>
-          </div>
-        `)}
+        ${Object.entries(stats.by_state)
+          .filter(([, v]) => v > 0)
+          .map(
+            ([k, v]) => html`
+              <div class="stat">
+                <div class="stat-value">${v}</div>
+                <div class="stat-label">${k}</div>
+              </div>
+            `,
+          )}
       </div>
     `}
 
@@ -81,32 +93,37 @@ export function TasksPage() {
       ${tasks.length === 0
         ? html`<p style="color: var(--text-dim); padding: 12px 0;">No tasks found.</p>`
         : html`
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Direction</th>
-                <th>Peer</th>
-                <th>Type</th>
-                <th>State</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${tasks.map((t) => html`
-                <tr key=${t.task_id}>
-                  <td style="font-family: var(--mono); font-size: 12px;">${t.task_id.slice(0, 8)}</td>
-                  <td>${t.direction}</td>
-                  <td style="font-family: var(--mono); font-size: 12px;">${t.peer_claw_id}</td>
-                  <td>${t.task.task_type}</td>
-                  <td><${StateBadge} state=${t.state} /></td>
-                  <td style="color: var(--text-dim); font-size: 12px;">${new Date(t.created_at).toLocaleString()}</td>
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Direction</th>
+                  <th>Peer</th>
+                  <th>Type</th>
+                  <th>State</th>
+                  <th>Created</th>
                 </tr>
-              `)}
-            </tbody>
-          </table>
-        `
-      }
+              </thead>
+              <tbody>
+                ${tasks.map(
+                  (t) => html`
+                    <tr key=${t.task_id}>
+                      <td style="font-family: var(--mono); font-size: 12px;">
+                        ${t.task_id.slice(0, 8)}
+                      </td>
+                      <td>${t.direction}</td>
+                      <td style="font-family: var(--mono); font-size: 12px;">${t.peer_claw_id}</td>
+                      <td>${t.task.task_type}</td>
+                      <td><${StateBadge} state=${t.state} /></td>
+                      <td style="color: var(--text-dim); font-size: 12px;">
+                        ${new Date(t.created_at).toLocaleString()}
+                      </td>
+                    </tr>
+                  `,
+                )}
+              </tbody>
+            </table>
+          `}
     </div>
   `;
 }

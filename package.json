@@ -2,10 +2,14 @@
   "name": "clawnexus-workspace",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "pnpm -r build",
     "dev": "pnpm -r --parallel dev",
-    "lint": "pnpm -r lint",
+    "lint": "eslint 'packages/*/src/**/*.ts'",
+    "lint:fix": "eslint 'packages/*/src/**/*.ts' --fix",
+    "format": "prettier --write 'packages/*/src/**/*.ts'",
+    "format:check": "prettier --check 'packages/*/src/**/*.ts'",
     "test": "vitest run",
     "clean": "pnpm -r --parallel exec rm -rf dist"
   },
@@ -14,7 +18,13 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^4.0.18",
-    "vitest": "^4.0.18"
+    "@eslint/js": "^10.0.1",
+    "@vitest/coverage-v8": "^4.1.0",
+    "eslint": "^10.0.3",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "prettier": "^3.8.1",
+    "typescript-eslint": "^8.57.1",
+    "vitest": "^4.1.0"
   }
 }

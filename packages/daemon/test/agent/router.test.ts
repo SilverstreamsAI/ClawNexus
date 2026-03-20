@@ -3,11 +3,14 @@ import { EventEmitter } from "node:events";
 import { AgentRouter } from "../../src/agent/router.js";
 import { PolicyEngine } from "../../src/agent/engine.js";
 import { TaskManager } from "../../src/agent/tasks.js";
+import type { RelayConnector } from "../../src/relay/connector.js";
+import type { SkillsRegistry } from "../../src/agent/services.js";
+import type { ServiceCapability } from "../../src/agent/types.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 
-// Minimal mock RelayConnector
+// Minimal mock RelayConnector — implements the subset used by AgentRouter
 function createMockConnector() {
   const emitter = new EventEmitter();
   const sent: Array<{ roomId: string; data: string }> = [];
@@ -17,7 +20,8 @@ function createMockConnector() {
       return true;
     },
     sent,
-  });
+  }) as EventEmitter & { sendData(roomId: string, data: string): boolean; sent: typeof sent } &
+    Pick<RelayConnector, "on" | "off" | "emit">;
 }
 
 describe("AgentRouter — sendReport & sendHeartbeat", () => {
@@ -42,7 +46,7 @@ describe("AgentRouter — sendReport & sendHeartbeat", () => {
     it("sends a completed report envelope", () => {
       const connector = createMockConnector();
       const router = new AgentRouter({
-        connector: connector as any,
+        connector: connector as unknown as RelayConnector,
         engine,
         tasks,
         localClawId: "me.id.claw",
@@ -65,7 +69,7 @@ describe("AgentRouter — sendReport & sendHeartbeat", () => {
     it("sends a failed report with error", () => {
       const connector = createMockConnector();
       const router = new AgentRouter({
-        connector: connector as any,
+        connector: connector as unknown as RelayConnector,
         engine,
         tasks,
         localClawId: "me.id.claw",
@@ -82,7 +86,7 @@ describe("AgentRouter — sendReport & sendHeartbeat", () => {
     it("sends to correct room", () => {
       const connector = createMockConnector();
       const router = new AgentRouter({
-        connector: connector as any,
+        connector: connector as unknown as RelayConnector,
         engine,
         tasks,
         localClawId: "me.id.claw",
@@ -97,7 +101,7 @@ describe("AgentRouter — sendReport & sendHeartbeat", () => {
     it("sends a heartbeat envelope", () => {
       const connector = createMockConnector();
       const router = new AgentRouter({
-        connector: connector as any,
+        connector: connector as unknown as RelayConnector,
         engine,
         tasks,
         localClawId: "me.id.claw",
@@ -119,7 +123,7 @@ describe("AgentRouter — sendReport & sendHeartbeat", () => {
     it("sends heartbeat without progress", () => {
       const connector = createMockConnector();
       const router = new AgentRouter({
-        connector: connector as any,
+        connector: connector as unknown as RelayConnector,
         engine,
         tasks,
         localClawId: "me.id.claw",
@@ -136,19 +140,19 @@ describe("AgentRouter — sendReport & sendHeartbeat", () => {
   describe("handleQuery with SkillsRegistry", () => {
     it("responds with capabilities from SkillsRegistry", () => {
       const connector = createMockConnector();
-      const mockRegistry = {
-        getCapabilities: () => [
+      const mockRegistry: Pick<SkillsRegistry, "getCapabilities"> = {
+        getCapabilities: (): ServiceCapability[] => [
           { service_type: "web_search", description: "Search the web" },
           { service_type: "code_run", description: "Run code" },
         ],
       };
 
       const router = new AgentRouter({
-        connector: connector as any,
+        connector: connector as unknown as RelayConnector,
         engine,
         tasks,
         localClawId: "me.id.claw",
-        skillsRegistry: mockRegistry as any,
+        skillsRegistry: mockRegistry as SkillsRegistry,
       });
       router.start();
 
@@ -179,7 +183,7 @@ describe("AgentRouter — sendReport & sendHeartbeat", () => {
     it("responds with empty capabilities when no SkillsRegistry", () => {
       const connector = createMockConnector();
       const router = new AgentRouter({
-        connector: connector as any,
+        connector: connector as unknown as RelayConnector,
         engine,
         tasks,
         localClawId: "me.id.claw",

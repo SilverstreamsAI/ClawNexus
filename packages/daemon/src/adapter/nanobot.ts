@@ -42,8 +42,11 @@ export class NanoBotAdapter implements FrameworkAdapter {
       });
       if (!res.ok) return false;
       const data = (await res.json()) as Record<string, unknown>;
-      return data.framework === "nanobot" || data.app === "nanobot" ||
-        (typeof data.python_version === "string" && this.defaultPorts.includes(port));
+      return (
+        data.framework === "nanobot" ||
+        data.app === "nanobot" ||
+        (typeof data.python_version === "string" && this.defaultPorts.includes(port))
+      );
     } catch {
       return false;
     }
@@ -94,9 +97,10 @@ export class NanoBotAdapter implements FrameworkAdapter {
       name: "nanobot",
       version: typeof data.version === "string" ? data.version : undefined,
       display_name: typeof data.name === "string" ? data.name : undefined,
-      metadata: typeof data.python_version === "string"
-        ? { python_version: data.python_version }
-        : undefined,
+      metadata:
+        typeof data.python_version === "string"
+          ? { python_version: data.python_version }
+          : undefined,
     };
   }
 }

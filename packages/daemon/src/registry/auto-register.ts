@@ -80,7 +80,7 @@ export class AutoRegister extends EventEmitter {
     if (autoName && autoName !== agentId) bases.push(autoName);
 
     // Build metadata and card summary for this heartbeat
-    const uptimeHours = Math.round((Date.now() - this.startedAt) / 3_600_000 * 100) / 100;
+    const uptimeHours = Math.round(((Date.now() - this.startedAt) / 3_600_000) * 100) / 100;
     const metadata = {
       software_version: this.daemonVersion,
       uptime_hours: uptimeHours,

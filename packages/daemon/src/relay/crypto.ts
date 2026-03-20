@@ -20,10 +20,7 @@ export function generateKeyPair(): KeyPair {
  * Derive a shared secret using X25519 ECDH.
  * Returns a 32-byte AES-256 key derived via HKDF.
  */
-export function deriveSessionKey(
-  localPrivateKey: Buffer,
-  remotePubKey: Buffer,
-): Buffer {
+export function deriveSessionKey(localPrivateKey: Buffer, remotePubKey: Buffer): Buffer {
   const privKey = crypto.createPrivateKey({
     key: localPrivateKey,
     format: "der",
@@ -41,9 +38,7 @@ export function deriveSessionKey(
   });
 
   // Derive AES-256 key using HKDF
-  return Buffer.from(
-    crypto.hkdfSync("sha256", sharedSecret, "", "clawnexus-relay-e2e", 32),
-  );
+  return Buffer.from(crypto.hkdfSync("sha256", sharedSecret, "", "clawnexus-relay-e2e", 32));
 }
 
 /**
@@ -54,10 +49,7 @@ export function encrypt(sessionKey: Buffer, plaintext: string): string {
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", sessionKey, iv);
 
-  const encrypted = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
-    cipher.final(),
-  ]);
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const authTag = cipher.getAuthTag();
 
   return Buffer.concat([iv, authTag, encrypted]).toString("base64");
@@ -77,8 +69,5 @@ export function decrypt(sessionKey: Buffer, encoded: string): string {
   const decipher = crypto.createDecipheriv("aes-256-gcm", sessionKey, iv);
   decipher.setAuthTag(authTag);
 
-  return Buffer.concat([
-    decipher.update(ciphertext),
-    decipher.final(),
-  ]).toString("utf8");
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
 }

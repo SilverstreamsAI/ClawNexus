@@ -14,7 +14,11 @@ const QUERY_INTERVAL = 30_000;
 interface MdnsAnswer {
   name: string;
   type: string;
-  data: string | { priority?: number; weight?: number; port?: number; target?: string } | Buffer | Array<Buffer>;
+  data:
+    | string
+    | { priority?: number; weight?: number; port?: number; target?: string }
+    | Buffer
+    | Array<Buffer>;
 }
 
 interface MdnsResponse {
@@ -62,9 +66,7 @@ export class MdnsListener extends EventEmitter {
     this.mdns.on("response", (...args: unknown[]) => {
       const response = args[0] as MdnsResponse;
       const rinfo = args[1] as { address: string } | undefined;
-      this.handleResponse(response, rinfo).catch((err) =>
-        this.emit("error", err),
-      );
+      this.handleResponse(response, rinfo).catch((err) => this.emit("error", err));
     });
 
     // Send initial query and repeat periodically
@@ -95,9 +97,7 @@ export class MdnsListener extends EventEmitter {
     const allRecords = [...(response.answers ?? []), ...(response.additionals ?? [])];
 
     // Look for PTR records pointing to our service type
-    const ptrRecords = allRecords.filter(
-      (r) => r.type === "PTR" && r.name === SERVICE_TYPE,
-    );
+    const ptrRecords = allRecords.filter((r) => r.type === "PTR" && r.name === SERVICE_TYPE);
     if (ptrRecords.length === 0) return;
 
     // Collect SRV and TXT records from the response
@@ -137,7 +137,8 @@ export class MdnsListener extends EventEmitter {
           port,
           lan_host: txt["lanHost"] ?? target,
           display_name: txt["displayName"] ?? "",
-          reason: "HTTP fetch failed — OpenClaw may be unreachable (firewall, AP isolation, or port not open).",
+          reason:
+            "HTTP fetch failed — OpenClaw may be unreachable (firewall, AP isolation, or port not open).",
           discovered_at: new Date().toISOString(),
         });
         continue;
@@ -181,11 +182,7 @@ export class MdnsListener extends EventEmitter {
     return result;
   }
 
-  private async fetchAgentId(
-    address: string,
-    port: number,
-    tls: boolean,
-  ): Promise<string | null> {
+  private async fetchAgentId(address: string, port: number, tls: boolean): Promise<string | null> {
     const protocol = tls ? "https" : "http";
     const url = `${protocol}://${address}:${port}${CONFIG_PATH}`;
     try {

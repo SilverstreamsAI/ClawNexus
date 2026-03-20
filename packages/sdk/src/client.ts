@@ -39,7 +39,10 @@ export class ClawNexusClient {
     return this.request("GET", `/instances/${encodeURIComponent(idOrName)}`);
   }
 
-  async setAlias(idOrName: string, alias: string): Promise<{ status: string; agent_id: string; alias: string }> {
+  async setAlias(
+    idOrName: string,
+    alias: string,
+  ): Promise<{ status: string; agent_id: string; alias: string }> {
     return this.request("PUT", `/instances/${encodeURIComponent(idOrName)}/alias`, { alias });
   }
 
@@ -93,7 +96,9 @@ export class ClawNexusClient {
     return this.request("PUT", "/agent/policy", policy);
   }
 
-  async patchPolicy(partial: Partial<PolicyConfig>): Promise<{ status: string; policy: PolicyConfig }> {
+  async patchPolicy(
+    partial: Partial<PolicyConfig>,
+  ): Promise<{ status: string; policy: PolicyConfig }> {
     return this.request("PATCH", "/agent/policy", partial);
   }
 
@@ -103,7 +108,11 @@ export class ClawNexusClient {
 
   // --- Layer B: Tasks ---
 
-  async listTasks(opts?: { all?: boolean; direction?: TaskDirection; state?: TaskState }): Promise<{ count: number; tasks: TaskRecord[] }> {
+  async listTasks(opts?: {
+    all?: boolean;
+    direction?: TaskDirection;
+    state?: TaskState;
+  }): Promise<{ count: number; tasks: TaskRecord[] }> {
     const params = new URLSearchParams();
     if (opts?.all) params.set("all", "true");
     if (opts?.direction) params.set("direction", opts.direction);
@@ -126,12 +135,28 @@ export class ClawNexusClient {
 
   // --- Layer B: Propose / Query ---
 
-  async propose(targetClawId: string, roomId: string, task: TaskSpec): Promise<{ status: string; task: TaskRecord }> {
-    return this.request("POST", "/agent/propose", { target_claw_id: targetClawId, room_id: roomId, task });
+  async propose(
+    targetClawId: string,
+    roomId: string,
+    task: TaskSpec,
+  ): Promise<{ status: string; task: TaskRecord }> {
+    return this.request("POST", "/agent/propose", {
+      target_claw_id: targetClawId,
+      room_id: roomId,
+      task,
+    });
   }
 
-  async query(targetClawId: string, roomId: string, queryType: "capabilities" | "status" | "availability"): Promise<{ status: string; message_id: string }> {
-    return this.request("POST", "/agent/query", { target_claw_id: targetClawId, room_id: roomId, query_type: queryType });
+  async query(
+    targetClawId: string,
+    roomId: string,
+    queryType: "capabilities" | "status" | "availability",
+  ): Promise<{ status: string; message_id: string }> {
+    return this.request("POST", "/agent/query", {
+      target_claw_id: targetClawId,
+      room_id: roomId,
+      query_type: queryType,
+    });
   }
 
   // --- Layer B: Inbox ---

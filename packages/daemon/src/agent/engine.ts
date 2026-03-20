@@ -81,8 +81,16 @@ export class PolicyEngine {
     const isWhitelisted = this.config.access_control.whitelist.includes(peer);
 
     // 4. Trust score check (skip for whitelisted and auto mode)
-    if (this.config.mode !== "auto" && !isWhitelisted && peerTrustScore < this.config.trust_threshold) {
-      return { result: "reject", reason: "trust_insufficient", details: `Score ${peerTrustScore} < threshold ${this.config.trust_threshold}` };
+    if (
+      this.config.mode !== "auto" &&
+      !isWhitelisted &&
+      peerTrustScore < this.config.trust_threshold
+    ) {
+      return {
+        result: "reject",
+        reason: "trust_insufficient",
+        details: `Score ${peerTrustScore} < threshold ${this.config.trust_threshold}`,
+      };
     }
 
     // 5. Delegation depth check
@@ -98,15 +106,20 @@ export class PolicyEngine {
 
     // 6. Capability filter (if non-empty, task_type must match)
     if (envelope.type === "propose" || envelope.type === "delegate") {
-      const task = envelope.type === "propose"
-        ? (envelope.payload as ProposePayload).task
-        : (envelope.payload as DelegatePayload).task;
+      const task =
+        envelope.type === "propose"
+          ? (envelope.payload as ProposePayload).task
+          : (envelope.payload as DelegatePayload).task;
       if (this.config.capability_filter.length > 0) {
         const matches = this.config.capability_filter.some(
           (pattern) => task.task_type === pattern || matchGlob(pattern, task.task_type),
         );
         if (!matches) {
-          return { result: "reject", reason: "capability_mismatch", details: `task_type "${task.task_type}" not in capability filter` };
+          return {
+            result: "reject",
+            reason: "capability_mismatch",
+            details: `task_type "${task.task_type}" not in capability filter`,
+          };
         }
       }
     }
@@ -127,7 +140,11 @@ export class PolicyEngine {
         if (envelope.type === "propose") {
           const taskType = (envelope.payload as ProposePayload).task.task_type;
           if (this.config.auto_approve_types.includes(taskType)) {
-            return { result: "accept", reason: "auto_approved", details: `task_type "${taskType}" auto-approved` };
+            return {
+              result: "accept",
+              reason: "auto_approved",
+              details: `task_type "${taskType}" auto-approved`,
+            };
           }
         }
         return { result: "queue", reason: "queued_for_review" };
@@ -168,7 +185,11 @@ export class PolicyEngine {
 
     // Per-peer rate
     const peerRate = this.rateCounters.get(peer);
-    if (peerRate && peerRate.resetAt > now && peerRate.count >= this.config.rate_limit.max_per_peer_minute) {
+    if (
+      peerRate &&
+      peerRate.resetAt > now &&
+      peerRate.count >= this.config.rate_limit.max_per_peer_minute
+    ) {
       return true;
     }
 
@@ -230,7 +251,7 @@ function deepMerge(target: PolicyConfig, source: Partial<PolicyConfig>): PolicyC
       typeof tv === "object" &&
       !Array.isArray(tv)
     ) {
-      result[key] = { ...tv as object, ...sv as object };
+      result[key] = { ...(tv as object), ...(sv as object) };
     } else if (sv !== undefined) {
       result[key] = sv;
     }

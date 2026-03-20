@@ -8,6 +8,7 @@ import { TaskManager } from "../../src/agent/tasks.js";
 import { TaskExecutor } from "../../src/agent/executor.js";
 import { makeTaskRecord } from "../fixtures.js";
 import type { TaskRecord } from "../../src/agent/types.js";
+import type { AgentRouter } from "../../src/agent/router.js";
 
 // Finds a free port for the mock gateway
 function getRandomPort(): number {
@@ -306,7 +307,7 @@ describe("TaskExecutor", () => {
       const mockRouter = createMockRouter();
 
       executor = new TaskExecutor({ tasks, gatewayUrl: `ws://127.0.0.1:${gwPort}`, maxConcurrent: 3 });
-      executor.setRouter(mockRouter as any);
+      executor.setRouter(mockRouter as unknown as AgentRouter);
 
       const record = makeTaskRecord({
         task_id: "exec-1",
@@ -347,7 +348,7 @@ describe("TaskExecutor", () => {
       const mockRouter = createMockRouter();
 
       executor = new TaskExecutor({ tasks, gatewayUrl: `ws://127.0.0.1:${gwPort}`, maxConcurrent: 3 });
-      executor.setRouter(mockRouter as any);
+      executor.setRouter(mockRouter as unknown as AgentRouter);
 
       tasks.create(makeTaskRecord({
         task_id: "hb-1",
@@ -482,7 +483,7 @@ describe("TaskExecutor", () => {
       const mockRouter = createMockRouter();
 
       executor = new TaskExecutor({ tasks, gatewayUrl: `ws://127.0.0.1:${gwPort}`, maxConcurrent: 3 });
-      executor.setRouter(mockRouter as any);
+      executor.setRouter(mockRouter as unknown as AgentRouter);
 
       tasks.create(makeTaskRecord({
         task_id: "timeout-1",
@@ -569,7 +570,7 @@ describe("TaskExecutor", () => {
 
       const mockRouter = createMockRouter();
       executor = new TaskExecutor({ tasks, gatewayUrl: `ws://127.0.0.1:${port}`, maxConcurrent: 3 });
-      executor.setRouter(mockRouter as any);
+      executor.setRouter(mockRouter as unknown as AgentRouter);
 
       tasks.create(makeTaskRecord({
         task_id: "err-1",

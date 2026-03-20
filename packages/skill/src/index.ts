@@ -14,7 +14,11 @@ interface SkillResponse {
   error?: string;
 }
 
-async function callDaemon(method: string, path: string, body?: unknown): Promise<{ ok: boolean; data: unknown }> {
+async function callDaemon(
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<{ ok: boolean; data: unknown }> {
   try {
     const res = await fetch(`${API_URL}${path}`, {
       method,
@@ -42,9 +46,7 @@ export async function handleSkillRequest(request: SkillRequest): Promise<SkillRe
       const name = request.params?.name;
       if (!name) return { success: false, error: "Missing instance name" };
       const { ok, data } = await callDaemon("GET", `/instances/${encodeURIComponent(name)}`);
-      return ok
-        ? { success: true, data }
-        : { success: false, error: "Instance not found" };
+      return ok ? { success: true, data } : { success: false, error: "Instance not found" };
     }
 
     case "scan": {
@@ -58,7 +60,9 @@ export async function handleSkillRequest(request: SkillRequest): Promise<SkillRe
       const id = request.params?.id;
       const alias = request.params?.alias;
       if (!id || !alias) return { success: false, error: "Missing id or alias" };
-      const { ok, data } = await callDaemon("PUT", `/instances/${encodeURIComponent(id)}/alias`, { alias });
+      const { ok, data } = await callDaemon("PUT", `/instances/${encodeURIComponent(id)}/alias`, {
+        alias,
+      });
       return ok
         ? { success: true, data }
         : { success: false, error: (data as { error?: string }).error };
@@ -76,18 +80,14 @@ export async function handleSkillRequest(request: SkillRequest): Promise<SkillRe
 
     case "health": {
       const { ok, data } = await callDaemon("GET", "/health");
-      return ok
-        ? { success: true, data }
-        : { success: false, error: "Daemon not available" };
+      return ok ? { success: true, data } : { success: false, error: "Daemon not available" };
     }
 
     case "resolve": {
       const name = request.params?.name;
       if (!name) return { success: false, error: "Missing .claw name" };
       const { ok, data } = await callDaemon("GET", `/resolve/${encodeURIComponent(name)}`);
-      return ok
-        ? { success: true, data }
-        : { success: false, error: "Name not found" };
+      return ok ? { success: true, data } : { success: false, error: "Name not found" };
     }
 
     default:

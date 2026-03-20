@@ -11,12 +11,7 @@ import type { FrameworkAdapter, ProbeResult } from "./types.js";
 const NANOCLAW_PACKAGE_NAME = "nanoclaw";
 
 // Common paths where nanoclaw might be installed
-const CANDIDATE_DIRS = [
-  "nanoclaw",
-  "NanoClaw",
-  "projects/nanoclaw",
-  "projects/NanoClaw",
-];
+const CANDIDATE_DIRS = ["nanoclaw", "NanoClaw", "projects/nanoclaw", "projects/NanoClaw"];
 
 export class NanoClawAdapter implements FrameworkAdapter {
   readonly name = "nanoclaw";

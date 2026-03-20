@@ -98,7 +98,7 @@ export interface RelayRoom {
   room_id: string;
   peer_claw_id: string;
   state: "pending" | "active";
-  session_key?: Buffer;   // AES-256-GCM key from ECDH
+  session_key?: Buffer; // AES-256-GCM key from ECDH
 }
 
 export interface RelayStatus {

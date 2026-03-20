@@ -2,8 +2,8 @@
 // Discover and identify OpenClaw-compatible AI instances
 // ClawLink SDK — ecosystem-compatible client library
 
-export { ClawNexusClient, ClawNexusApiError } from './client.js';
-export type { ClawNexusClientOptions } from './client.js';
+export { ClawNexusClient, ClawNexusApiError } from "./client.js";
+export type { ClawNexusClientOptions } from "./client.js";
 
 // Re-export core types for SDK consumers
 export type {
@@ -20,4 +20,4 @@ export type {
   InboxItem,
   AgentCard,
   AgentSkill,
-} from './types.js';
+} from "./types.js";

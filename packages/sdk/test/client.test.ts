@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ClawNexusClient, ClawNexusApiError } from "../src/client.js";
+import type { PolicyConfig } from "../src/types.js";
 
 describe("ClawNexusClient", () => {
   let client: ClawNexusClient;
@@ -123,7 +124,7 @@ describe("ClawNexusClient", () => {
   describe("updatePolicy", () => {
     it("calls PUT /agent/policy", async () => {
       mockOk({ status: "ok" });
-      await client.updatePolicy({ mode: "auto" } as any);
+      await client.updatePolicy({ mode: "auto" } as PolicyConfig);
       expect(lastCall().method).toBe("PUT");
       expect(lastCall().body.mode).toBe("auto");
     });

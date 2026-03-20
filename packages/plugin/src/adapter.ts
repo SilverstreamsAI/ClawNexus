@@ -87,5 +87,7 @@ export class DaemonAdapter {
 }
 
 function isAddrInUse(err: unknown): boolean {
-  return err instanceof Error && "code" in err && (err as NodeJS.ErrnoException).code === "EADDRINUSE";
+  return (
+    err instanceof Error && "code" in err && (err as NodeJS.ErrnoException).code === "EADDRINUSE"
+  );
 }

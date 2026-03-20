@@ -9,8 +9,8 @@ export function normalize(name: string): string {
   let result = name
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, "-") // replace invalid chars with hyphen
-    .replace(/-+/g, "-")          // collapse consecutive hyphens
-    .replace(/^-|-$/g, "");       // trim leading/trailing hyphens
+    .replace(/-+/g, "-") // collapse consecutive hyphens
+    .replace(/^-|-$/g, ""); // trim leading/trailing hyphens
 
   if (result.length > 32) {
     result = result.slice(0, 32).replace(/-$/, "");
@@ -23,11 +23,7 @@ export function normalize(name: string): string {
  * Generate an auto_name from instance metadata.
  * Priority: lanHost (strip .local) > displayName > address
  */
-export function generateAutoName(
-  lanHost: string,
-  displayName: string,
-  address: string,
-): string {
+export function generateAutoName(lanHost: string, displayName: string, address: string): string {
   // Try lan_host first (strip .local suffix for cleaner names)
   if (lanHost && lanHost !== "127.0.0.1" && lanHost !== address) {
     const stripped = lanHost.replace(/\.local$/i, "");

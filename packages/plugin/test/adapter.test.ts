@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { mockClose, mockHandle, mockStartDaemon } = vi.hoisted(() => {
   const mockClose = vi.fn().mockResolvedValue(undefined);
-  const mockHandle = { app: { close: mockClose } } as any;
+  const mockHandle = { app: { close: mockClose } } as unknown as import("clawnexus").DaemonHandle;
   const mockStartDaemon = vi.fn().mockResolvedValue(mockHandle);
   return { mockClose, mockHandle, mockStartDaemon };
 });

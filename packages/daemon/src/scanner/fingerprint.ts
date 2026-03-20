@@ -50,22 +50,23 @@ export async function identifyImplementation(
   return { implementation: "unknown", confidence: 0.1 };
 }
 
-async function probeClawIdentity(
-  host: string,
-  port: number,
-): Promise<FingerprintResult | null> {
+async function probeClawIdentity(host: string, port: number): Promise<FingerprintResult | null> {
   try {
-    const res = await fetch(
-      `http://${host}:${port}/.well-known/claw-identity.json`,
-      { signal: AbortSignal.timeout(FINGERPRINT_TIMEOUT) },
-    );
+    const res = await fetch(`http://${host}:${port}/.well-known/claw-identity.json`, {
+      signal: AbortSignal.timeout(FINGERPRINT_TIMEOUT),
+    });
     if (!res.ok) return null;
 
     const data = (await res.json()) as ClawIdentity;
     if (data.implementation && typeof data.implementation === "string") {
       const impl = data.implementation.toLowerCase() as ClawImplementation;
       const known: ClawImplementation[] = [
-        "openclaw", "goclaw", "zeroclaw", "picoclaw", "nanoclaw", "nanobot",
+        "openclaw",
+        "goclaw",
+        "zeroclaw",
+        "picoclaw",
+        "nanoclaw",
+        "nanobot",
       ];
       return {
         implementation: known.includes(impl) ? impl : "unknown",
@@ -90,10 +91,7 @@ function analyzeConfig(config: ControlUiConfig): FingerprintResult {
 
   // GoClaw compat mode: minimal config, typically <6 fields
   // and missing OpenClaw-specific UI fields
-  const uiFields = [
-    "controlUi", "assistantUrl", "webSearchEnabled",
-    "customInstructions", "tools",
-  ];
+  const uiFields = ["controlUi", "assistantUrl", "webSearchEnabled", "customInstructions", "tools"];
   const hasUiFields = uiFields.some((f) => f in config);
 
   if (fieldCount < 6 && !hasUiFields) {
@@ -109,10 +107,7 @@ function analyzeConfig(config: ControlUiConfig): FingerprintResult {
  * ZeroClaw: /health returns JSON with "paired" + "runtime" fields
  * PicoClaw: /health + /ready both return 200 (K8s-style)
  */
-async function probeHealth(
-  host: string,
-  port: number,
-): Promise<FingerprintResult | null> {
+async function probeHealth(host: string, port: number): Promise<FingerprintResult | null> {
   try {
     const res = await fetch(`http://${host}:${port}/health`, {
       signal: AbortSignal.timeout(FINGERPRINT_TIMEOUT),

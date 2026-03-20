@@ -74,7 +74,9 @@ export class AgentRouter extends EventEmitter {
   sendMessage(roomId: string, envelope: LayerBEnvelope): boolean {
     const result = this.connector.sendData(roomId, JSON.stringify(envelope));
     if (!result) {
-      console.log(`[clawnexus] [Router] sendMessage FAILED — room=${roomId} (no room or no session_key)`);
+      console.log(
+        `[clawnexus] [Router] sendMessage FAILED — room=${roomId} (no room or no session_key)`,
+      );
     }
     return result;
   }
@@ -106,7 +108,11 @@ export class AgentRouter extends EventEmitter {
   }
 
   /** Send a query to a peer */
-  query(roomId: string, targetClawId: string, queryType: "capabilities" | "status" | "availability"): LayerBEnvelope {
+  query(
+    roomId: string,
+    targetClawId: string,
+    queryType: "capabilities" | "status" | "availability",
+  ): LayerBEnvelope {
     const envelope = createEnvelope(this.localClawId, targetClawId, "query", {
       query_type: queryType,
     });
@@ -150,26 +156,18 @@ export class AgentRouter extends EventEmitter {
     error?: string,
   ): void {
     const payload: ReportPayload = { task_id: taskId, status, result, error };
-    const envelope = createEnvelope(
-      this.localClawId,
-      targetClawId,
-      "report",
-      payload,
-      { in_reply_to: taskId },
-    );
+    const envelope = createEnvelope(this.localClawId, targetClawId, "report", payload, {
+      in_reply_to: taskId,
+    });
     this.sendMessage(roomId, envelope);
   }
 
   /** Send a heartbeat for an executing task */
   sendHeartbeat(roomId: string, targetClawId: string, taskId: string, progressPct?: number): void {
     const payload: HeartbeatPayload = { task_id: taskId, progress_pct: progressPct };
-    const envelope = createEnvelope(
-      this.localClawId,
-      targetClawId,
-      "heartbeat",
-      payload,
-      { in_reply_to: taskId },
-    );
+    const envelope = createEnvelope(this.localClawId, targetClawId, "heartbeat", payload, {
+      in_reply_to: taskId,
+    });
     this.sendMessage(roomId, envelope);
   }
 
@@ -243,7 +241,11 @@ export class AgentRouter extends EventEmitter {
           this.localClawId,
           envelope.from,
           "reject",
-          { task_id: envelope.message_id, reason: decision.reason as string, message: decision.details },
+          {
+            task_id: envelope.message_id,
+            reason: decision.reason as string,
+            message: decision.details,
+          },
           { in_reply_to: envelope.message_id },
         );
         this.sendMessage(roomId, reply);
@@ -258,9 +260,10 @@ export class AgentRouter extends EventEmitter {
   }
 
   private acceptProposal(envelope: LayerBEnvelope, roomId: string): TaskRecord {
-    const task = envelope.type === "propose"
-      ? (envelope.payload as ProposePayload).task
-      : (envelope.payload as { task: ProposePayload["task"] }).task;
+    const task =
+      envelope.type === "propose"
+        ? (envelope.payload as ProposePayload).task
+        : (envelope.payload as { task: ProposePayload["task"] }).task;
 
     const record: TaskRecord = {
       task_id: envelope.message_id,
@@ -291,9 +294,7 @@ export class AgentRouter extends EventEmitter {
   }
 
   private handleQuery(envelope: LayerBEnvelope, roomId: string): void {
-    const capabilities = this.skillsRegistry
-      ? this.skillsRegistry.getCapabilities()
-      : [];
+    const capabilities = this.skillsRegistry ? this.skillsRegistry.getCapabilities() : [];
     const reply = createEnvelope(
       this.localClawId,
       envelope.from,

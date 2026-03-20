@@ -1,15 +1,34 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { EventEmitter } from "node:events";
 import { AgentRouter } from "../../src/agent/router.js";
+import type { AgentRouterOptions } from "../../src/agent/router.js";
 import { PolicyEngine } from "../../src/agent/engine.js";
 import { TaskManager } from "../../src/agent/tasks.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import type { LayerBEnvelope, ProposePayload } from "../../src/agent/types.js";
+import type {
+  LayerBEnvelope,
+  ProposePayload,
+  AcceptPayload,
+  RejectPayload,
+  ReportPayload,
+  CancelPayload,
+  HeartbeatPayload,
+  CapabilityPayload,
+  DelegatePayload,
+  PolicyDecision,
+  QueryPayload,
+} from "../../src/agent/types.js";
+import type { RelayConnector } from "../../src/relay/connector.js";
 
-// Minimal mock RelayConnector
-function createMockConnector() {
+// Minimal mock RelayConnector — satisfies the subset used by AgentRouter
+type MockConnector = EventEmitter & {
+  sendData(roomId: string, data: string): boolean;
+  sent: Array<{ roomId: string; data: string }>;
+};
+
+function createMockConnector(): MockConnector {
   const emitter = new EventEmitter();
   const sent: Array<{ roomId: string; data: string }> = [];
   return Object.assign(emitter, {
@@ -19,6 +38,21 @@ function createMockConnector() {
     },
     sent,
   });
+}
+
+/** Build AgentRouterOptions with a mock connector, avoiding `as any`. */
+function routerOpts(
+  connector: MockConnector,
+  overrides: Partial<Omit<AgentRouterOptions, "connector">> & {
+    engine: PolicyEngine;
+    tasks: TaskManager;
+  },
+): AgentRouterOptions {
+  return {
+    connector: connector as unknown as RelayConnector,
+    localClawId: overrides.localClawId ?? "me.id.claw",
+    ...overrides,
+  };
 }
 
 function makeValidEnvelope(overrides: Partial<LayerBEnvelope> = {}): string {
@@ -61,12 +95,7 @@ describe("AgentRouter — extended tests", () => {
     it("creates outbound task and sends propose envelope", async () => {
       await engine.patchConfig({ mode: "auto" });
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
 
       const outboundEvents: LayerBEnvelope[] = [];
       router.on("outbound", (env: LayerBEnvelope) => outboundEvents.push(env));
@@ -104,12 +133,7 @@ describe("AgentRouter — extended tests", () => {
   describe("query()", () => {
     it("sends query envelope and emits outbound event", () => {
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
 
       const outboundEvents: LayerBEnvelope[] = [];
       router.on("outbound", (env: LayerBEnvelope) => outboundEvents.push(env));
@@ -119,7 +143,7 @@ describe("AgentRouter — extended tests", () => {
       expect(envelope.type).toBe("query");
       expect(envelope.from).toBe("me.id.claw");
       expect(envelope.to).toBe("target.id.claw");
-      expect((envelope.payload as any).query_type).toBe("capabilities");
+      expect((envelope.payload as QueryPayload).query_type).toBe("capabilities");
 
       expect(connector.sent).toHaveLength(1);
       expect(connector.sent[0].roomId).toBe("room-1");
@@ -128,12 +152,7 @@ describe("AgentRouter — extended tests", () => {
 
     it("supports different query types", () => {
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
 
       router.query("room-1", "target.id.claw", "status");
       router.query("room-1", "target.id.claw", "availability");
@@ -148,12 +167,7 @@ describe("AgentRouter — extended tests", () => {
     it("getInbox() returns queued proposals", async () => {
       await engine.patchConfig({ mode: "queue", trust_threshold: 0 }); // queue mode → proposals go to inbox
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
 
       // Simulate inbound propose
@@ -180,12 +194,7 @@ describe("AgentRouter — extended tests", () => {
     it("approveInbox() creates task and sends accept reply", async () => {
       await engine.patchConfig({ mode: "queue", trust_threshold: 0 });
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
 
       connector.emit("data", "room-1", makeValidEnvelope({
@@ -224,12 +233,7 @@ describe("AgentRouter — extended tests", () => {
 
     it("approveInbox() returns null for unknown messageId", () => {
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
 
       const result = router.approveInbox("nonexistent");
       expect(result).toBeNull();
@@ -238,12 +242,7 @@ describe("AgentRouter — extended tests", () => {
     it("denyInbox() sends reject reply and removes from inbox", async () => {
       await engine.patchConfig({ mode: "queue", trust_threshold: 0 });
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
 
       connector.emit("data", "room-1", makeValidEnvelope({
@@ -275,12 +274,7 @@ describe("AgentRouter — extended tests", () => {
 
     it("denyInbox() does nothing for unknown messageId", () => {
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
 
       router.denyInbox("nonexistent"); // Should not throw
       expect(connector.sent).toHaveLength(0);
@@ -292,12 +286,7 @@ describe("AgentRouter — extended tests", () => {
       await engine.patchConfig({ mode: "auto" });
       const connector1 = createMockConnector();
       const connector2 = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector1 as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector1, { engine, tasks }));
       router.start();
 
       // Data from old connector should be handled
@@ -308,7 +297,7 @@ describe("AgentRouter — extended tests", () => {
       expect(inboundEvents).toHaveLength(1);
 
       // Hot-swap connector
-      router.setConnector(connector2 as any);
+      router.setConnector(connector2 as unknown as RelayConnector);
 
       // Old connector should no longer trigger handler
       connector1.emit("data", "room-1", makeValidEnvelope({ message_id: "msg-should-not-arrive" }));
@@ -324,15 +313,10 @@ describe("AgentRouter — extended tests", () => {
     it("hot-swap before start() does not break", () => {
       const connector1 = createMockConnector();
       const connector2 = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector1 as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector1, { engine, tasks }));
 
       // setConnector before start — dataHandler is null
-      router.setConnector(connector2 as any);
+      router.setConnector(connector2 as unknown as RelayConnector);
       router.start();
 
       const inboundEvents: LayerBEnvelope[] = [];
@@ -353,12 +337,7 @@ describe("AgentRouter — extended tests", () => {
     it("handles accept response and updates task state", async () => {
       await engine.patchConfig({ mode: "auto" });
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
 
       // Create an outbound task first
@@ -376,7 +355,7 @@ describe("AgentRouter — extended tests", () => {
         from: "peer.id.claw",
         to: "me.id.claw",
         type: "accept",
-        payload: { task_id: record.task_id } as any,
+        payload: { task_id: record.task_id } as AcceptPayload,
         in_reply_to: record.task_id,
       }));
 
@@ -390,12 +369,7 @@ describe("AgentRouter — extended tests", () => {
     it("handles reject response", async () => {
       await engine.patchConfig({ mode: "auto" });
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
 
       const record = router.propose("room-1", "peer.id.claw", {
@@ -407,7 +381,7 @@ describe("AgentRouter — extended tests", () => {
         message_id: "reject-1",
         from: "peer.id.claw",
         type: "reject",
-        payload: { task_id: record.task_id, reason: "overloaded", message: "Too busy" } as any,
+        payload: { task_id: record.task_id, reason: "overloaded", message: "Too busy" } as RejectPayload,
       }));
 
       // Task is rejected and archived (terminal state)
@@ -420,12 +394,7 @@ describe("AgentRouter — extended tests", () => {
     it("handles report (completed) response", async () => {
       await engine.patchConfig({ mode: "auto" });
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
 
       const record = router.propose("room-1", "peer.id.claw", {
@@ -437,14 +406,14 @@ describe("AgentRouter — extended tests", () => {
       connector.emit("data", "room-1", makeValidEnvelope({
         from: "peer.id.claw",
         type: "accept",
-        payload: { task_id: record.task_id } as any,
+        payload: { task_id: record.task_id } as AcceptPayload,
       }));
 
       // Then report completed
       connector.emit("data", "room-1", makeValidEnvelope({
         from: "peer.id.claw",
         type: "report",
-        payload: { task_id: record.task_id, status: "completed", result: "Done!" } as any,
+        payload: { task_id: record.task_id, status: "completed", result: "Done!" } as ReportPayload,
       }));
 
       // Archived
@@ -456,12 +425,7 @@ describe("AgentRouter — extended tests", () => {
     it("handles cancel response", async () => {
       await engine.patchConfig({ mode: "auto" });
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
 
       const record = router.propose("room-1", "peer.id.claw", {
@@ -472,7 +436,7 @@ describe("AgentRouter — extended tests", () => {
       connector.emit("data", "room-1", makeValidEnvelope({
         from: "peer.id.claw",
         type: "cancel",
-        payload: { task_id: record.task_id, reason: "No longer needed" } as any,
+        payload: { task_id: record.task_id, reason: "No longer needed" } as CancelPayload,
       }));
 
       expect(tasks.getById(record.task_id)).toBeUndefined(); // archived
@@ -483,12 +447,7 @@ describe("AgentRouter — extended tests", () => {
     it("handles heartbeat and updates task", async () => {
       await engine.patchConfig({ mode: "auto" });
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
 
       const record = router.propose("room-1", "peer.id.claw", {
@@ -500,7 +459,7 @@ describe("AgentRouter — extended tests", () => {
       connector.emit("data", "room-1", makeValidEnvelope({
         from: "peer.id.claw",
         type: "accept",
-        payload: { task_id: record.task_id } as any,
+        payload: { task_id: record.task_id } as AcceptPayload,
       }));
 
       const taskBefore = tasks.getById(record.task_id);
@@ -510,7 +469,7 @@ describe("AgentRouter — extended tests", () => {
       connector.emit("data", "room-1", makeValidEnvelope({
         from: "peer.id.claw",
         type: "heartbeat",
-        payload: { task_id: record.task_id, progress_pct: 50 } as any,
+        payload: { task_id: record.task_id, progress_pct: 50 } as HeartbeatPayload,
       }));
 
       const taskAfter = tasks.getById(record.task_id);
@@ -522,12 +481,7 @@ describe("AgentRouter — extended tests", () => {
 
     it("handles capability response by emitting event", async () => {
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
 
       const capEvents: LayerBEnvelope[] = [];
@@ -536,11 +490,11 @@ describe("AgentRouter — extended tests", () => {
       connector.emit("data", "room-1", makeValidEnvelope({
         from: "peer.id.claw",
         type: "capability",
-        payload: { capabilities: [{ service_type: "web_search", description: "Search" }] } as any,
+        payload: { capabilities: [{ service_type: "web_search", description: "Search" }] } as CapabilityPayload,
       }));
 
       expect(capEvents).toHaveLength(1);
-      expect((capEvents[0].payload as any).capabilities).toHaveLength(1);
+      expect((capEvents[0].payload as CapabilityPayload).capabilities).toHaveLength(1);
 
       router.stop();
     });
@@ -548,16 +502,11 @@ describe("AgentRouter — extended tests", () => {
     it("handles delegate envelope same as propose", async () => {
       await engine.patchConfig({ mode: "auto" });
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
 
-      const decisionEvents: Array<{ envelope: LayerBEnvelope; decision: any }> = [];
-      router.on("decision", (env: LayerBEnvelope, decision: any) => {
+      const decisionEvents: Array<{ envelope: LayerBEnvelope; decision: PolicyDecision }> = [];
+      router.on("decision", (env: LayerBEnvelope, decision: PolicyDecision) => {
         decisionEvents.push({ envelope: env, decision });
       });
 
@@ -569,7 +518,7 @@ describe("AgentRouter — extended tests", () => {
           task_id: "original-task",
           original_from: "origin.id.claw",
           task: { task_type: "test", description: "Delegated task" },
-        } as any,
+        } as DelegatePayload,
       }));
 
       // Since delegation is disabled by default, it should be rejected
@@ -585,12 +534,7 @@ describe("AgentRouter — extended tests", () => {
   describe("handleData — error paths", () => {
     it("ignores invalid JSON silently", async () => {
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
 
       const errors: Error[] = [];
@@ -605,12 +549,7 @@ describe("AgentRouter — extended tests", () => {
 
     it("ignores non-clawnexus-agent protocol messages", () => {
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
 
       const errors: Error[] = [];
@@ -634,12 +573,7 @@ describe("AgentRouter — extended tests", () => {
 
     it("ignores expired envelopes", () => {
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
 
       const expired: LayerBEnvelope[] = [];
@@ -659,12 +593,7 @@ describe("AgentRouter — extended tests", () => {
     it("emits inbound event for all valid messages", async () => {
       await engine.patchConfig({ mode: "auto" });
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
 
       const inbound: LayerBEnvelope[] = [];
@@ -681,12 +610,7 @@ describe("AgentRouter — extended tests", () => {
     it("auto-accepts in auto mode", async () => {
       await engine.patchConfig({ mode: "auto" });
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
 
       connector.emit("data", "room-1", makeValidEnvelope({
@@ -707,12 +631,7 @@ describe("AgentRouter — extended tests", () => {
         access_control: { whitelist: [], blacklist: ["evil.id.claw"] },
       });
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
 
       connector.emit("data", "room-1", makeValidEnvelope({
@@ -731,12 +650,7 @@ describe("AgentRouter — extended tests", () => {
     it("queues in queue mode and emits queued event", async () => {
       await engine.patchConfig({ mode: "queue", trust_threshold: 0 });
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
 
       const queued: LayerBEnvelope[] = [];
@@ -759,12 +673,7 @@ describe("AgentRouter — extended tests", () => {
   describe("start() and stop()", () => {
     it("stop() unbinds data handler", () => {
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
 
       const inbound: LayerBEnvelope[] = [];
@@ -778,12 +687,7 @@ describe("AgentRouter — extended tests", () => {
 
     it("double stop() is safe", () => {
       const connector = createMockConnector();
-      const router = new AgentRouter({
-        connector: connector as any,
-        engine,
-        tasks,
-        localClawId: "me.id.claw",
-      });
+      const router = new AgentRouter(routerOpts(connector, { engine, tasks }));
       router.start();
       router.stop();
       router.stop(); // Should not throw

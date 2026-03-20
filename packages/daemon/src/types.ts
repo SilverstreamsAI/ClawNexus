@@ -12,7 +12,7 @@ export interface RemoteCard {
   input_modes?: string[];
   output_modes?: string[];
   card_url: string;
-  fetched_at: string;     // ISO 8601
+  fetched_at: string; // ISO 8601
 }
 
 export type ClawImplementation =
@@ -27,9 +27,9 @@ export type ClawImplementation =
 
 export interface ClawInstance {
   // Identifiers (three layers)
-  agent_id: string;           // from OpenClaw (read-only, may be duplicated e.g. "main")
-  auto_name: string;          // ClawNexus auto-generated (unique, from hostname)
-  alias?: string;             // user-set (unique, ≤32 chars)
+  agent_id: string; // from OpenClaw (read-only, may be duplicated e.g. "main")
+  auto_name: string; // ClawNexus auto-generated (unique, from hostname)
+  alias?: string; // user-set (unique, ≤32 chars)
 
   // Naming (from OpenClaw, read-only)
   assistant_name: string;
@@ -58,8 +58,8 @@ export interface ClawInstance {
   is_self?: boolean;
 
   // Registry (v0.2 — public registry integration)
-  claw_name?: string;        // "main.id.claw" — registered name on public registry
-  owner_pubkey?: string;     // "ed25519:aabb..." — owner identity key
+  claw_name?: string; // "main.id.claw" — registered name on public registry
+  owner_pubkey?: string; // "ed25519:aabb..." — owner identity key
 
   // Implementation variant (fingerprint identification)
   implementation?: ClawImplementation;

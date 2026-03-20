@@ -1,12 +1,6 @@
 import { WebSocket } from "ws";
 import { EventEmitter } from "node:events";
-import type {
-  ClientMessage,
-  RelayMessage,
-  RelayState,
-  RelayRoom,
-  RelayStatus,
-} from "./types.js";
+import type { ClientMessage, RelayMessage, RelayState, RelayRoom, RelayStatus } from "./types.js";
 import { generateKeyPair, deriveSessionKey, encrypt, decrypt } from "./crypto.js";
 import type { KeyPair } from "./crypto.js";
 
@@ -108,7 +102,9 @@ export class RelayConnector extends EventEmitter {
   sendData(roomId: string, plaintext: string): boolean {
     const room = this.rooms.get(roomId);
     if (!room || !room.session_key) {
-      console.log(`[clawnexus] [Relay] sendData failed: room=${roomId} exists=${!!room} hasKey=${!!room?.session_key}`);
+      console.log(
+        `[clawnexus] [Relay] sendData failed: room=${roomId} exists=${!!room} hasKey=${!!room?.session_key}`,
+      );
       return false;
     }
 
@@ -203,10 +199,7 @@ export class RelayConnector extends EventEmitter {
           const parsed = JSON.parse(msg.payload);
           if (parsed._type === "KEY_EXCHANGE" && parsed.pubkey) {
             const remotePubKey = Buffer.from(parsed.pubkey, "base64");
-            room.session_key = deriveSessionKey(
-              this.keyPair.privateKey,
-              remotePubKey,
-            );
+            room.session_key = deriveSessionKey(this.keyPair.privateKey, remotePubKey);
             this.emit("key_exchanged", msg.room_id);
             break;
           }
@@ -221,10 +214,14 @@ export class RelayConnector extends EventEmitter {
             this.emit("data", msg.room_id, plaintext);
           } catch {
             // Decrypt failed — log and skip, do not emit "error" (would crash if no listener)
-            console.log(`[clawnexus] [Relay] Failed to decrypt message in room ${msg.room_id} — skipping`);
+            console.log(
+              `[clawnexus] [Relay] Failed to decrypt message in room ${msg.room_id} — skipping`,
+            );
           }
         } else {
-          console.log(`[clawnexus] [Relay] DATA in room ${msg.room_id} — no session_key yet, dropping`);
+          console.log(
+            `[clawnexus] [Relay] DATA in room ${msg.room_id} — no session_key yet, dropping`,
+          );
         }
         break;
       }

@@ -11,7 +11,7 @@ export interface ProbeResult {
 }
 
 export interface FrameworkAdapter {
-  readonly name: string;            // matches ClawImplementation
+  readonly name: string; // matches ClawImplementation
   readonly defaultPorts: number[];
   probe(host: string, port: number): Promise<ProbeResult | null>;
   toClawInstance(host: string, port: number, probe: ProbeResult): Partial<ClawInstance>;

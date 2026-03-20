@@ -99,7 +99,9 @@ function storeDeviceAuthToken(deviceId: string, role: string, token: string): vo
   try {
     fs.mkdirSync(AUTH_TOKEN_DIR, { recursive: true });
     const p = authTokenPath(deviceId, role);
-    fs.writeFileSync(p, JSON.stringify({ token, role, storedAtMs: Date.now() }, null, 2), { mode: 0o600 });
+    fs.writeFileSync(p, JSON.stringify({ token, role, storedAtMs: Date.now() }, null, 2), {
+      mode: 0o600,
+    });
   } catch {
     // Non-fatal
   }
@@ -177,7 +179,10 @@ export function connectGateway(opts: GatewayConnectionOptions = {}): Promise<Gat
 
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(gatewayUrl);
-    const pendingRequests = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
+    const pendingRequests = new Map<
+      string,
+      { resolve: (v: unknown) => void; reject: (e: Error) => void }
+    >();
 
     const connectTimeout = setTimeout(() => {
       ws.close();
@@ -251,7 +256,9 @@ export function connectGateway(opts: GatewayConnectionOptions = {}): Promise<Gat
             },
             role,
             scopes,
-            auth: authToken ? { token: authToken, deviceToken: storedToken ?? undefined } : undefined,
+            auth: authToken
+              ? { token: authToken, deviceToken: storedToken ?? undefined }
+              : undefined,
             device: {
               id: identity.deviceId,
               publicKey: publicKeyRawBase64Url(identity.publicKeyPem),
@@ -271,7 +278,11 @@ export function connectGateway(opts: GatewayConnectionOptions = {}): Promise<Gat
             const helloOk = payload as Record<string, unknown> | undefined;
             const authInfo = helloOk?.auth as Record<string, unknown> | undefined;
             if (authInfo?.deviceToken && typeof authInfo.deviceToken === "string") {
-              storeDeviceAuthToken(identity.deviceId, (authInfo.role as string) ?? role, authInfo.deviceToken);
+              storeDeviceAuthToken(
+                identity.deviceId,
+                (authInfo.role as string) ?? role,
+                authInfo.deviceToken,
+              );
             }
 
             const conn: GatewayConnection = {
@@ -285,8 +296,14 @@ export function connectGateway(opts: GatewayConnectionOptions = {}): Promise<Gat
                     rej(new Error(`Gateway request timeout: ${method} (${requestTimeoutMs}ms)`));
                   }, requestTimeoutMs);
                   pendingRequests.set(id, {
-                    resolve: (v) => { clearTimeout(timer); res(v); },
-                    reject: (e) => { clearTimeout(timer); rej(e); },
+                    resolve: (v) => {
+                      clearTimeout(timer);
+                      res(v);
+                    },
+                    reject: (e) => {
+                      clearTimeout(timer);
+                      rej(e);
+                    },
                   });
                   ws.send(JSON.stringify({ type: "req", id, method, params: params ?? {} }));
                 });
@@ -317,9 +334,11 @@ export function connectGateway(opts: GatewayConnectionOptions = {}): Promise<Gat
             pending.resolve(msg.payload);
           } else {
             const error = msg.error as Record<string, unknown> | undefined;
-            pending.reject(new Error(
-              (error?.message as string) ?? `Gateway request failed: ${error?.code ?? "unknown"}`
-            ));
+            pending.reject(
+              new Error(
+                (error?.message as string) ?? `Gateway request failed: ${error?.code ?? "unknown"}`,
+              ),
+            );
           }
         }
       }

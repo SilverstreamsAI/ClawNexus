@@ -28,7 +28,7 @@ describe("Skill handleSkillRequest", () => {
       mockOk({ count: 1, instances: [{ agent_id: "a1" }] });
       const result = await handleSkillRequest({ action: "list" });
       expect(result.success).toBe(true);
-      expect((result.data as any).count).toBe(1);
+      expect((result.data as { count: number }).count).toBe(1);
     });
 
     it("returns error on failure", async () => {
@@ -99,13 +99,13 @@ describe("Skill handleSkillRequest", () => {
       mockOk({ agent_id: "a1", address: "192.168.1.10", gateway_port: 18789, tls: false });
       const result = await handleSkillRequest({ action: "connect", params: { name: "a1" } });
       expect(result.success).toBe(true);
-      expect((result.data as any).url).toBe("ws://192.168.1.10:18789");
+      expect((result.data as { url: string }).url).toBe("ws://192.168.1.10:18789");
     });
 
     it("returns wss URL for TLS instance", async () => {
       mockOk({ agent_id: "a1", address: "192.168.1.10", gateway_port: 18789, tls: true });
       const result = await handleSkillRequest({ action: "connect", params: { name: "a1" } });
-      expect((result.data as any).url).toBe("wss://192.168.1.10:18789");
+      expect((result.data as { url: string }).url).toBe("wss://192.168.1.10:18789");
     });
 
     it("requires name param", async () => {

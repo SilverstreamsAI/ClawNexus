@@ -89,9 +89,7 @@ export class RegistryClient {
     registryUrl?: string,
     timeout?: number,
   ) {
-    this.registryUrl = registryUrl
-      ?? process.env.CLAWNEXUS_REGISTRY_URL
-      ?? DEFAULT_REGISTRY_URL;
+    this.registryUrl = registryUrl ?? process.env.CLAWNEXUS_REGISTRY_URL ?? DEFAULT_REGISTRY_URL;
     this.timeout = timeout ?? DEFAULT_TIMEOUT;
   }
 

@@ -17,9 +17,9 @@ const CONFIG_PATH = "/__openclaw/control-ui-config.json";
 
 // Default ports for all known implementations
 const BUILTIN_PORTS = [
-  18789,  // OpenClaw, GoClaw
-  42617,  // ZeroClaw
-  18790,  // PicoClaw
+  18789, // OpenClaw, GoClaw
+  42617, // ZeroClaw
+  18790, // PicoClaw
 ];
 const DEFAULT_SCAN_PORTS = [...new Set([...BUILTIN_PORTS, ...getAllAdapterPorts()])];
 
@@ -31,9 +31,9 @@ export interface ScanOptions {
 }
 
 interface SubnetInfo {
-  subnet: string;        // e.g. "192.168.1"
+  subnet: string; // e.g. "192.168.1"
   type: "physical" | "wireguard";
-  peerIPs?: string[];    // wireguard only: precise targets
+  peerIPs?: string[]; // wireguard only: precise targets
 }
 
 export class ActiveScanner extends EventEmitter {
@@ -122,9 +122,7 @@ export class ActiveScanner extends EventEmitter {
 
           if (wgSubnets.has(subnet)) {
             // WireGuard subnet: attach peer IPs for precise scanning
-            const peerIPs = wgInfo.peerIPs.filter(
-              (ip) => ip.startsWith(subnet + "."),
-            );
+            const peerIPs = wgInfo.peerIPs.filter((ip) => ip.startsWith(subnet + "."));
             result.push({ subnet, type: "wireguard", peerIPs });
           } else {
             result.push({ subnet, type: "physical" });
@@ -166,10 +164,7 @@ export class ActiveScanner extends EventEmitter {
       }
     };
 
-    const workers = Array.from(
-      { length: Math.min(CONCURRENCY, targets.length) },
-      () => worker(),
-    );
+    const workers = Array.from({ length: Math.min(CONCURRENCY, targets.length) }, () => worker());
     await Promise.allSettled(workers);
 
     return discovered;
@@ -247,10 +242,7 @@ export class ActiveScanner extends EventEmitter {
     return null;
   }
 
-  private async probeConfigEndpoint(
-    host: string,
-    port: number,
-  ): Promise<ControlUiConfig | null> {
+  private async probeConfigEndpoint(host: string, port: number): Promise<ControlUiConfig | null> {
     const url = `http://${host}:${port}${CONFIG_PATH}`;
     try {
       const res = await fetch(url, {

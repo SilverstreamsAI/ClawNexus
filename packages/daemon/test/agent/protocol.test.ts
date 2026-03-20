@@ -6,6 +6,28 @@ import {
   isExpired,
   ProtocolError,
 } from "../../src/agent/protocol.js";
+import type {
+  LayerBPayload,
+  LayerBEnvelope,
+  QueryPayload,
+  ProposePayload,
+  AcceptPayload,
+  RejectPayload,
+  DelegatePayload,
+  ReportPayload,
+  CancelPayload,
+  CapabilityPayload,
+  HeartbeatPayload,
+} from "../../src/agent/types.js";
+
+/**
+ * Helper to cast intentionally incomplete/invalid payloads for
+ * testing validation error paths. Communicates that the partial
+ * object is deliberately malformed.
+ */
+function partial<T extends LayerBPayload>(obj: Partial<T>): LayerBPayload {
+  return obj as LayerBPayload;
+}
 
 describe("Protocol", () => {
   describe("createEnvelope", () => {
@@ -96,17 +118,17 @@ describe("Protocol", () => {
 
   describe("validatePayload", () => {
     it("validates query payload", () => {
-      expect(() => validatePayload("query", {} as any)).toThrow("missing query_type");
-      expect(() => validatePayload("query", { query_type: "invalid" } as any)).toThrow("invalid query_type");
+      expect(() => validatePayload("query", partial<QueryPayload>({}))).toThrow("missing query_type");
+      expect(() => validatePayload("query", partial<QueryPayload>({ query_type: "invalid" as "capabilities" }))).toThrow("invalid query_type");
       expect(() => validatePayload("query", { query_type: "capabilities" })).not.toThrow();
       expect(() => validatePayload("query", { query_type: "status" })).not.toThrow();
       expect(() => validatePayload("query", { query_type: "availability" })).not.toThrow();
     });
 
     it("validates propose payload", () => {
-      expect(() => validatePayload("propose", {} as any)).toThrow("missing task");
-      expect(() => validatePayload("propose", { task: {} } as any)).toThrow("missing task.task_type");
-      expect(() => validatePayload("propose", { task: { task_type: "t" } } as any)).toThrow("missing task.description");
+      expect(() => validatePayload("propose", partial<ProposePayload>({}))).toThrow("missing task");
+      expect(() => validatePayload("propose", partial<ProposePayload>({ task: {} as ProposePayload["task"] }))).toThrow("missing task.task_type");
+      expect(() => validatePayload("propose", partial<ProposePayload>({ task: { task_type: "t" } as ProposePayload["task"] }))).toThrow("missing task.description");
       expect(() => validatePayload("propose", { task: { task_type: "t", description: "d" } })).not.toThrow();
     });
 
@@ -119,46 +141,46 @@ describe("Protocol", () => {
     });
 
     it("validates accept payload", () => {
-      expect(() => validatePayload("accept", {} as any)).toThrow("missing task_id");
+      expect(() => validatePayload("accept", partial<AcceptPayload>({}))).toThrow("missing task_id");
       expect(() => validatePayload("accept", { task_id: "t" })).not.toThrow();
     });
 
     it("validates reject payload", () => {
-      expect(() => validatePayload("reject", {} as any)).toThrow("missing task_id");
-      expect(() => validatePayload("reject", { task_id: "t" } as any)).toThrow("missing reason");
+      expect(() => validatePayload("reject", partial<RejectPayload>({}))).toThrow("missing task_id");
+      expect(() => validatePayload("reject", partial<RejectPayload>({ task_id: "t" }))).toThrow("missing reason");
       expect(() => validatePayload("reject", { task_id: "t", reason: "policy_denied" })).not.toThrow();
     });
 
     it("validates delegate payload", () => {
-      expect(() => validatePayload("delegate", {} as any)).toThrow("missing task_id");
-      expect(() => validatePayload("delegate", { task_id: "t" } as any)).toThrow("missing original_from");
-      expect(() => validatePayload("delegate", { task_id: "t", original_from: "a" } as any)).toThrow("missing task");
+      expect(() => validatePayload("delegate", partial<DelegatePayload>({}))).toThrow("missing task_id");
+      expect(() => validatePayload("delegate", partial<DelegatePayload>({ task_id: "t" }))).toThrow("missing original_from");
+      expect(() => validatePayload("delegate", partial<DelegatePayload>({ task_id: "t", original_from: "a" }))).toThrow("missing task");
       expect(() =>
         validatePayload("delegate", { task_id: "t", original_from: "a", task: { task_type: "x", description: "y" } }),
       ).not.toThrow();
     });
 
     it("validates report payload", () => {
-      expect(() => validatePayload("report", {} as any)).toThrow("missing task_id");
-      expect(() => validatePayload("report", { task_id: "t" } as any)).toThrow("missing status");
-      expect(() => validatePayload("report", { task_id: "t", status: "bad" } as any)).toThrow("invalid status");
+      expect(() => validatePayload("report", partial<ReportPayload>({}))).toThrow("missing task_id");
+      expect(() => validatePayload("report", partial<ReportPayload>({ task_id: "t" }))).toThrow("missing status");
+      expect(() => validatePayload("report", partial<ReportPayload>({ task_id: "t", status: "bad" as "completed" }))).toThrow("invalid status");
       expect(() => validatePayload("report", { task_id: "t", status: "completed" })).not.toThrow();
       expect(() => validatePayload("report", { task_id: "t", status: "failed" })).not.toThrow();
       expect(() => validatePayload("report", { task_id: "t", status: "progress" })).not.toThrow();
     });
 
     it("validates cancel payload", () => {
-      expect(() => validatePayload("cancel", {} as any)).toThrow("missing task_id");
+      expect(() => validatePayload("cancel", partial<CancelPayload>({}))).toThrow("missing task_id");
       expect(() => validatePayload("cancel", { task_id: "t" })).not.toThrow();
     });
 
     it("validates capability payload", () => {
-      expect(() => validatePayload("capability", {} as any)).toThrow("missing capabilities array");
+      expect(() => validatePayload("capability", partial<CapabilityPayload>({}))).toThrow("missing capabilities array");
       expect(() => validatePayload("capability", { capabilities: [] })).not.toThrow();
     });
 
     it("validates heartbeat payload", () => {
-      expect(() => validatePayload("heartbeat", {} as any)).toThrow("missing task_id");
+      expect(() => validatePayload("heartbeat", partial<HeartbeatPayload>({}))).toThrow("missing task_id");
       expect(() => validatePayload("heartbeat", { task_id: "t" })).not.toThrow();
     });
   });
@@ -190,7 +212,7 @@ describe("Protocol", () => {
 
     it("uses default TTL of 300s when not set", () => {
       const env = createEnvelope("a", "b", "heartbeat", { task_id: "t" });
-      delete (env as any).ttl;
+      delete env.ttl;
       expect(isExpired(env)).toBe(false);
 
       env.timestamp = new Date(Date.now() - 400_000).toISOString();

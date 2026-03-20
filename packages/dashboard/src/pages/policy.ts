@@ -6,7 +6,11 @@ import type { PolicyConfig } from "../api.js";
 
 const html = htm.bind(h);
 
-export function PolicyPage({ showToast }: { showToast: (msg: string, type: "ok" | "err") => void }) {
+export function PolicyPage({
+  showToast,
+}: {
+  showToast: (msg: string, type: "ok" | "err") => void;
+}) {
   const [policy, setPolicy] = useState<PolicyConfig | null>(null);
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState("");
@@ -24,7 +28,9 @@ export function PolicyPage({ showToast }: { showToast: (msg: string, type: "ok" 
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const handleSave = async () => {
     try {
@@ -59,21 +65,27 @@ export function PolicyPage({ showToast }: { showToast: (msg: string, type: "ok" 
       <div style="display: flex; gap: 8px;">
         ${!editing && html`<button onClick=${() => setEditing(true)}>Edit</button>`}
         ${editing && html`<button class="primary" onClick=${handleSave}>Save</button>`}
-        ${editing && html`<button onClick=${() => { setEditing(false); setEditText(JSON.stringify(policy, null, 2)); }}>Cancel</button>`}
+        ${editing &&
+        html`<button
+          onClick=${() => {
+            setEditing(false);
+            setEditText(JSON.stringify(policy, null, 2));
+          }}
+        >
+          Cancel
+        </button>`}
         <button onClick=${handleReset} style="color: var(--red);">Reset</button>
       </div>
     </div>
 
     <div class="card">
       ${editing
-        ? html`
-          <textarea
+        ? html` <textarea
             style="width: 100%; min-height: 400px; font-family: var(--mono); font-size: 12px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; resize: vertical;"
             value=${editText}
             onInput=${(e: Event) => setEditText((e.target as HTMLTextAreaElement).value)}
           />`
-        : html`<pre class="code-block">${JSON.stringify(policy, null, 2)}</pre>`
-      }
+        : html`<pre class="code-block">${JSON.stringify(policy, null, 2)}</pre>`}
     </div>
   `;
 }

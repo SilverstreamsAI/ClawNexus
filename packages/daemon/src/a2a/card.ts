@@ -46,7 +46,9 @@ export function buildAgentCard(
   // Skill priority: remote_card.skills (remote) > skills param (local) > DEFAULT_SKILL
   const resolvedSkills = instance.remote_card?.skills?.length
     ? instance.remote_card.skills
-    : (skills && skills.length > 0 ? skills : [DEFAULT_SKILL]);
+    : skills && skills.length > 0
+      ? skills
+      : [DEFAULT_SKILL];
 
   const remoteCapabilities = instance.remote_card?.capabilities;
 

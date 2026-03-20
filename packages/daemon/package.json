@@ -22,6 +22,7 @@
     "cli",
     "clawnexus"
   ],
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -49,7 +50,7 @@
   },
   "dependencies": {
     "@fastify/static": "^9.0.0",
-    "fastify": "^5.0.0",
+    "fastify": "^5.8.2",
     "multicast-dns": "^7.2.5",
     "ws": "^8.18.0"
   },

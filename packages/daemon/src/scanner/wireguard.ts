@@ -9,14 +9,14 @@ import * as os from "node:os";
 const execFileAsync = promisify(execFile);
 
 export interface WireGuardInterface {
-  name: string;       // e.g. "wg0-client-example"
-  address: string;    // e.g. "10.66.66.5"
-  subnet: string;     // e.g. "10.66.66"
+  name: string; // e.g. "wg0-client-example"
+  address: string; // e.g. "10.66.66.5"
+  subnet: string; // e.g. "10.66.66"
 }
 
 export interface WireGuardInfo {
   interfaces: WireGuardInterface[];
-  peerIPs: string[];  // /32 peer IPs extracted from `wg show dump`
+  peerIPs: string[]; // /32 peer IPs extracted from `wg show dump`
 }
 
 const EMPTY_INFO: WireGuardInfo = { interfaces: [], peerIPs: [] };
@@ -79,9 +79,7 @@ async function getWgCliInterfaces(): Promise<string[]> {
 }
 
 /** Strategy 2: Check /sys/class/net/<iface>/type for WireGuard type 65534 */
-function getSysfsWireGuardInterfaces(
-  osIfaces: NodeJS.Dict<os.NetworkInterfaceInfo[]>,
-): string[] {
+function getSysfsWireGuardInterfaces(osIfaces: NodeJS.Dict<os.NetworkInterfaceInfo[]>): string[] {
   const names: string[] = [];
   for (const name of Object.keys(osIfaces)) {
     try {
@@ -141,18 +139,12 @@ function matchInterfacesToOS(
  * Only includes /32 addresses (precise peer targets).
  * Larger subnets are skipped (logged at debug level by caller).
  */
-async function extractPeerIPs(
-  interfaces: WireGuardInterface[],
-): Promise<string[]> {
+async function extractPeerIPs(interfaces: WireGuardInterface[]): Promise<string[]> {
   const peerIPs: string[] = [];
 
   for (const iface of interfaces) {
     try {
-      const { stdout } = await execFileAsync(
-        "wg",
-        ["show", iface.name, "dump"],
-        { timeout: 3000 },
-      );
+      const { stdout } = await execFileAsync("wg", ["show", iface.name, "dump"], { timeout: 3000 });
 
       // dump format: one line per peer, tab-separated
       // Fields: public-key, preshared-key, endpoint, allowed-ips, latest-handshake, transfer-rx, transfer-tx, persistent-keepalive

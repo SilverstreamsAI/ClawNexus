@@ -475,7 +475,7 @@ describe("connectGateway", () => {
     const port = getRandomPort();
     gateway = createMockGateway(port, {
       rejectConnect: true,
-      rejectError: { code: "UNKNOWN" } as any,
+      rejectError: { code: "UNKNOWN" } as { code: string; message: string },
     });
 
     await expect(

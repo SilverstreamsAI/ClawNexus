@@ -88,7 +88,10 @@ export class A2AHandler {
       this.activeTasks--;
       task.status = {
         state: "failed",
-        message: { role: "agent", parts: [{ type: "text", text: `Gateway connection failed: ${(err as Error).message}` }] },
+        message: {
+          role: "agent",
+          parts: [{ type: "text", text: `Gateway connection failed: ${(err as Error).message}` }],
+        },
       };
       this.persistTask(task);
       return task;
@@ -224,12 +227,14 @@ export class A2AHandler {
 
       this.sessions.set(sessionKey, { resolve, reject, timer });
 
-      ws.send(JSON.stringify({
-        type: "req",
-        id: requestId,
-        method: "chat.send",
-        params: { sessionKey, message, idempotencyKey: requestId },
-      }));
+      ws.send(
+        JSON.stringify({
+          type: "req",
+          id: requestId,
+          method: "chat.send",
+          params: { sessionKey, message, idempotencyKey: requestId },
+        }),
+      );
     });
   }
 

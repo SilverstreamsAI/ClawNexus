@@ -114,7 +114,9 @@ export const api = {
   getTasks: (all = false) => request<TasksResponse>("GET", `/agent/tasks${all ? "?all=true" : ""}`),
   getTaskStats: () => request<TaskStats>("GET", "/agent/tasks/stats"),
   getPolicy: () => request<PolicyConfig>("GET", "/agent/policy"),
-  updatePolicy: (patch: Partial<PolicyConfig>) => request<{ status: string; policy: PolicyConfig }>("PATCH", "/agent/policy", patch),
-  resetPolicy: () => request<{ status: string; policy: PolicyConfig }>("POST", "/agent/policy/reset"),
+  updatePolicy: (patch: Partial<PolicyConfig>) =>
+    request<{ status: string; policy: PolicyConfig }>("PATCH", "/agent/policy", patch),
+  resetPolicy: () =>
+    request<{ status: string; policy: PolicyConfig }>("POST", "/agent/policy/reset"),
   getWhoami: () => request<{ pubkey?: string; claw_name?: string }>("GET", "/whoami"),
 };

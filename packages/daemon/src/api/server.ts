@@ -30,7 +30,11 @@ import { CardFetcher } from "../a2a/fetcher.js";
 import { A2AHandler } from "../a2a/handler.js";
 import { A2ATaskStore } from "../a2a/store.js";
 import type { A2ARequest, A2AResponse, A2AError } from "../a2a/types.js";
-import { JSON_RPC_PARSE_ERROR, JSON_RPC_INVALID_REQUEST, JSON_RPC_METHOD_NOT_FOUND } from "../a2a/types.js";
+import {
+  JSON_RPC_PARSE_ERROR,
+  JSON_RPC_INVALID_REQUEST,
+  JSON_RPC_METHOD_NOT_FOUND,
+} from "../a2a/types.js";
 import { SkillsRegistry } from "../agent/services.js";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -43,38 +47,35 @@ export function registerRelayRoutes(
   getConnector: () => RelayConnector | null,
   getTokenRefresher?: () => (() => Promise<string>) | null,
 ): void {
-  app.post<{ Body: { target_claw_id: string } }>(
-    "/relay/connect",
-    async (request, reply) => {
-      const connector = getConnector();
-      if (!connector) {
-        return reply.status(503).send({
-          error: "Relay connector not initialized",
-        });
-      }
+  app.post<{ Body: { target_claw_id: string } }>("/relay/connect", async (request, reply) => {
+    const connector = getConnector();
+    if (!connector) {
+      return reply.status(503).send({
+        error: "Relay connector not initialized",
+      });
+    }
 
-      const { target_claw_id } = request.body;
-      if (!target_claw_id) {
-        return reply.status(400).send({
-          error: "Missing target_claw_id",
-        });
-      }
+    const { target_claw_id } = request.body;
+    if (!target_claw_id) {
+      return reply.status(400).send({
+        error: "Missing target_claw_id",
+      });
+    }
 
-      // Refresh auth token before JOIN (relay JWTs expire after 5 min)
-      const refresher = getTokenRefresher?.();
-      if (refresher) {
-        try {
-          const freshToken = await refresher();
-          connector.updateAuthToken(freshToken);
-        } catch (err) {
-          app.log.warn(`Token refresh before JOIN failed: ${err}`);
-        }
+    // Refresh auth token before JOIN (relay JWTs expire after 5 min)
+    const refresher = getTokenRefresher?.();
+    if (refresher) {
+      try {
+        const freshToken = await refresher();
+        connector.updateAuthToken(freshToken);
+      } catch (err) {
+        app.log.warn(`Token refresh before JOIN failed: ${err}`);
       }
+    }
 
-      connector.join(target_claw_id);
-      return { status: "connecting", target: target_claw_id };
-    },
-  );
+    connector.join(target_claw_id);
+    return { status: "connecting", target: target_claw_id };
+  });
 
   app.get("/relay/status", async (_request, reply) => {
     const connector = getConnector();
@@ -110,10 +111,7 @@ export interface AgentDeps {
   skillsRegistry?: SkillsRegistry;
 }
 
-export function registerAgentRoutes(
-  app: FastifyInstance,
-  deps: AgentDeps,
-): void {
+export function registerAgentRoutes(app: FastifyInstance, deps: AgentDeps): void {
   const { engine, tasks, getRouter, getExecutor, skillsRegistry } = deps;
 
   // --- Skills ---
@@ -184,14 +182,11 @@ export function registerAgentRoutes(
 
   app.get("/agent/tasks/stats", async () => tasks.getStats());
 
-  app.get<{ Params: { id: string } }>(
-    "/agent/tasks/:id",
-    async (request, reply) => {
-      const task = tasks.getById(request.params.id);
-      if (!task) return reply.status(404).send({ error: "Task not found" });
-      return task;
-    },
-  );
+  app.get<{ Params: { id: string } }>("/agent/tasks/:id", async (request, reply) => {
+    const task = tasks.getById(request.params.id);
+    if (!task) return reply.status(404).send({ error: "Task not found" });
+    return task;
+  });
 
   app.post<{ Params: { id: string }; Body: { reason?: string } }>(
     "/agent/tasks/:id/cancel",
@@ -204,33 +199,39 @@ export function registerAgentRoutes(
 
   // --- Propose / Query ---
 
-  app.post<{ Body: { target_claw_id: string; room_id: string; task: { task_type: string; description: string; input?: Record<string, unknown> } } }>(
-    "/agent/propose",
-    async (request, reply) => {
-      const router = getRouter();
-      if (!router) return reply.status(503).send({ error: "Agent router not initialized" });
-      const { target_claw_id, room_id, task } = request.body;
-      if (!target_claw_id || !room_id || !task) {
-        return reply.status(400).send({ error: "Missing target_claw_id, room_id, or task" });
-      }
-      const record = router.propose(room_id, target_claw_id, task);
-      return { status: "ok", task: record };
-    },
-  );
+  app.post<{
+    Body: {
+      target_claw_id: string;
+      room_id: string;
+      task: { task_type: string; description: string; input?: Record<string, unknown> };
+    };
+  }>("/agent/propose", async (request, reply) => {
+    const router = getRouter();
+    if (!router) return reply.status(503).send({ error: "Agent router not initialized" });
+    const { target_claw_id, room_id, task } = request.body;
+    if (!target_claw_id || !room_id || !task) {
+      return reply.status(400).send({ error: "Missing target_claw_id, room_id, or task" });
+    }
+    const record = router.propose(room_id, target_claw_id, task);
+    return { status: "ok", task: record };
+  });
 
-  app.post<{ Body: { target_claw_id: string; room_id: string; query_type: "capabilities" | "status" | "availability" } }>(
-    "/agent/query",
-    async (request, reply) => {
-      const router = getRouter();
-      if (!router) return reply.status(503).send({ error: "Agent router not initialized" });
-      const { target_claw_id, room_id, query_type } = request.body;
-      if (!target_claw_id || !room_id || !query_type) {
-        return reply.status(400).send({ error: "Missing target_claw_id, room_id, or query_type" });
-      }
-      const envelope = router.query(room_id, target_claw_id, query_type);
-      return { status: "ok", message_id: envelope.message_id };
-    },
-  );
+  app.post<{
+    Body: {
+      target_claw_id: string;
+      room_id: string;
+      query_type: "capabilities" | "status" | "availability";
+    };
+  }>("/agent/query", async (request, reply) => {
+    const router = getRouter();
+    if (!router) return reply.status(503).send({ error: "Agent router not initialized" });
+    const { target_claw_id, room_id, query_type } = request.body;
+    if (!target_claw_id || !room_id || !query_type) {
+      return reply.status(400).send({ error: "Missing target_claw_id, room_id, or query_type" });
+    }
+    const envelope = router.query(room_id, target_claw_id, query_type);
+    return { status: "ok", message_id: envelope.message_id };
+  });
 
   // --- Inbox ---
 
@@ -250,16 +251,13 @@ export function registerAgentRoutes(
     };
   });
 
-  app.post<{ Params: { id: string } }>(
-    "/agent/inbox/:id/approve",
-    async (request, reply) => {
-      const router = getRouter();
-      if (!router) return reply.status(503).send({ error: "Agent router not initialized" });
-      const record = router.approveInbox(request.params.id);
-      if (!record) return reply.status(404).send({ error: "Inbox item not found" });
-      return { status: "ok", task: record };
-    },
-  );
+  app.post<{ Params: { id: string } }>("/agent/inbox/:id/approve", async (request, reply) => {
+    const router = getRouter();
+    if (!router) return reply.status(503).send({ error: "Agent router not initialized" });
+    const record = router.approveInbox(request.params.id);
+    if (!record) return reply.status(404).send({ error: "Inbox item not found" });
+    return { status: "ok", task: record };
+  });
 
   app.post<{ Params: { id: string }; Body: { reason?: string } }>(
     "/agent/inbox/:id/deny",
@@ -279,10 +277,7 @@ export interface RegistryDeps {
   identityKeys: IdentityKeys;
 }
 
-export function registerRegistryRoutes(
-  app: FastifyInstance,
-  deps: RegistryDeps,
-): void {
+export function registerRegistryRoutes(app: FastifyInstance, deps: RegistryDeps): void {
   const { autoRegister, remoteDiscovery, registryClient, identityKeys } = deps;
 
   app.post("/registry/register", async () => {
@@ -302,16 +297,13 @@ export function registerRegistryRoutes(
     };
   });
 
-  app.get<{ Params: { name: string } }>(
-    "/resolve/:name",
-    async (request, reply) => {
-      const instance = await remoteDiscovery.resolve(request.params.name);
-      if (!instance) {
-        return reply.status(404).send({ error: "Name not found" });
-      }
-      return instance;
-    },
-  );
+  app.get<{ Params: { name: string } }>("/resolve/:name", async (request, reply) => {
+    const instance = await remoteDiscovery.resolve(request.params.name);
+    if (!instance) {
+      return reply.status(404).send({ error: "Name not found" });
+    }
+    return instance;
+  });
 
   app.get("/whoami", async () => {
     return {
@@ -334,16 +326,13 @@ export function registerInstanceRoutes(
     return { count: instances.length, instances };
   });
 
-  app.get<{ Params: { id: string } }>(
-    "/instances/:id",
-    async (request, reply) => {
-      const inst = store.resolve(request.params.id);
-      if (!inst) {
-        return reply.status(404).send({ error: "Instance not found" });
-      }
-      return inst;
-    },
-  );
+  app.get<{ Params: { id: string } }>("/instances/:id", async (request, reply) => {
+    const inst = store.resolve(request.params.id);
+    if (!inst) {
+      return reply.status(404).send({ error: "Instance not found" });
+    }
+    return inst;
+  });
 
   app.put<{ Params: { id: string }; Body: { alias: string } }>(
     "/instances/:id/alias",
@@ -372,18 +361,15 @@ export function registerInstanceRoutes(
     },
   );
 
-  app.delete<{ Params: { id: string } }>(
-    "/instances/:id",
-    async (request, reply) => {
-      const inst = store.resolve(request.params.id);
-      if (!inst) {
-        return reply.status(404).send({ error: "Instance not found" });
-      }
-      const nk = store.networkKey(inst.address, inst.gateway_port);
-      store.remove(nk);
-      return { status: "ok", removed: inst.auto_name };
-    },
-  );
+  app.delete<{ Params: { id: string } }>("/instances/:id", async (request, reply) => {
+    const inst = store.resolve(request.params.id);
+    if (!inst) {
+      return reply.status(404).send({ error: "Instance not found" });
+    }
+    const nk = store.networkKey(inst.address, inst.gateway_port);
+    store.remove(nk);
+    return { status: "ok", removed: inst.auto_name };
+  });
 
   app.post<{ Body: ScanOptions }>("/scan", async (request) => {
     const opts: ScanOptions = {};
@@ -408,17 +394,16 @@ export interface DiagnosticsDeps {
   unreachable: UnreachableInstance[];
 }
 
-export function registerDiagnosticsRoutes(
-  app: FastifyInstance,
-  deps: DiagnosticsDeps,
-): void {
+export function registerDiagnosticsRoutes(app: FastifyInstance, deps: DiagnosticsDeps): void {
   app.get("/diagnostics", async () => {
     const { store, localProbe, mdns, getConnector, getAutoRegister, unreachable } = deps;
     const connector = getConnector();
 
     const instances = store.getAll();
     const lanCount = instances.filter(
-      (i) => i.connectivity?.preferred_channel === "lan" || i.connectivity?.preferred_channel === "local",
+      (i) =>
+        i.connectivity?.preferred_channel === "lan" ||
+        i.connectivity?.preferred_channel === "local",
     ).length;
     const relayCount = instances.filter(
       (i) => i.connectivity?.preferred_channel === "relay",
@@ -490,17 +475,14 @@ export function registerA2aRoutes(
   });
 
   // Single instance Agent Card by name
-  app.get<{ Params: { name: string } }>(
-    "/a2a/cards/:name",
-    async (request, reply) => {
-      const inst = store.resolve(request.params.name);
-      if (!inst) {
-        return reply.status(404).send({ error: "Instance not found" });
-      }
-      const localSkills = inst.is_self ? skillsRegistry?.getSkills() : undefined;
-      return buildAgentCard(inst, daemonVersion, localSkills);
-    },
-  );
+  app.get<{ Params: { name: string } }>("/a2a/cards/:name", async (request, reply) => {
+    const inst = store.resolve(request.params.name);
+    if (!inst) {
+      return reply.status(404).send({ error: "Instance not found" });
+    }
+    const localSkills = inst.is_self ? skillsRegistry?.getSkills() : undefined;
+    return buildAgentCard(inst, daemonVersion, localSkills);
+  });
 
   // A2A JSON-RPC 2.0 endpoint
   if (a2aHandler) {
@@ -686,9 +668,9 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     console.log("[clawnexus] [WireGuard] No WireGuard interfaces detected");
   }
 
-  const daemonPkg = JSON.parse(
-    readFileSync(join(__dirname, "../../package.json"), "utf-8"),
-  ) as { version: string };
+  const daemonPkg = JSON.parse(readFileSync(join(__dirname, "../../package.json"), "utf-8")) as {
+    version: string;
+  };
 
   // Health endpoint with component status
   app.get("/health", async () => ({
@@ -719,15 +701,19 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
   registerInstanceRoutes(app, store, scanner);
 
   // Relay routes
-  registerRelayRoutes(app, () => connector, () => {
-    const rc = registryClient;
-    const clawName = autoRegister?.clawName;
-    if (!rc || !clawName) return null;
-    return async () => {
-      const result = await rc.getToken(clawName);
-      return result.token;
-    };
-  });
+  registerRelayRoutes(
+    app,
+    () => connector,
+    () => {
+      const rc = registryClient;
+      const clawName = autoRegister?.clawName;
+      if (!rc || !clawName) return null;
+      return async () => {
+        const result = await rc.getToken(clawName);
+        return result.token;
+      };
+    },
+  );
 
   // Agent routes (Layer B)
   registerAgentRoutes(app, {
@@ -784,7 +770,10 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     identityKeys = await loadOrCreateKeys();
     registryClient = new RegistryClient(identityKeys);
     autoRegister = new AutoRegister(
-      registryClient, store, localProbe, identityKeys,
+      registryClient,
+      store,
+      localProbe,
+      identityKeys,
       daemonPkg.version,
       () => {
         const skills = skillsRegistry.getSkills();
@@ -815,7 +804,8 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
           const tokenResult = await registryClient.getToken(info.claw_name);
           console.log(`[clawnexus] [Relay] Got auth token, relay_hint: ${tokenResult.relay_hint}`);
 
-          const relayUrl = process.env.CLAWNEXUS_RELAY_URL ?? `wss://${tokenResult.relay_hint}/relay`;
+          const relayUrl =
+            process.env.CLAWNEXUS_RELAY_URL ?? `wss://${tokenResult.relay_hint}/relay`;
           const newConnector = new RelayConnector({
             relayUrl,
             clawId: info.claw_name,
@@ -830,7 +820,9 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
             console.log(`[clawnexus] [Relay] Error: ${code} — ${message}`);
           });
           newConnector.on("incoming", (room: { room_id: string; peer_claw_id: string }) => {
-            console.log(`[clawnexus] [Relay] Incoming connection from ${room.peer_claw_id} (room: ${room.room_id})`);
+            console.log(
+              `[clawnexus] [Relay] Incoming connection from ${room.peer_claw_id} (room: ${room.room_id})`,
+            );
           });
           newConnector.on("joined", (roomId: string) => {
             console.log(`[clawnexus] [Relay] Joined room ${roomId}`);
@@ -845,48 +837,53 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
           // Start token refresh — every 55 minutes (relay keeps WebSocket alive after auth,
           // only need to refresh for reconnection scenarios)
           if (tokenRefreshTimer) clearInterval(tokenRefreshTimer);
-          tokenRefreshTimer = setInterval(async () => {
-            if (!registryClient || !autoRegister?.clawName) return;
-            try {
-              const fresh = await registryClient.getToken(autoRegister.clawName);
+          tokenRefreshTimer = setInterval(
+            async () => {
+              if (!registryClient || !autoRegister?.clawName) return;
+              try {
+                const fresh = await registryClient.getToken(autoRegister.clawName);
 
-              // Save peer claw_ids from existing rooms before reconnecting
-              const previousPeers: string[] = [];
-              const oldConnector = connector;
-              if (oldConnector) {
-                for (const room of oldConnector.getStatus().rooms) {
-                  if (room.peer_claw_id) previousPeers.push(room.peer_claw_id);
+                // Save peer claw_ids from existing rooms before reconnecting
+                const previousPeers: string[] = [];
+                const oldConnector = connector;
+                if (oldConnector) {
+                  for (const room of oldConnector.getStatus().rooms) {
+                    if (room.peer_claw_id) previousPeers.push(room.peer_claw_id);
+                  }
                 }
+
+                // Connect new first, then disconnect old (relay server handles replacement)
+                const refreshed = new RelayConnector({
+                  relayUrl: process.env.CLAWNEXUS_RELAY_URL ?? `wss://${fresh.relay_hint}/relay`,
+                  clawId: autoRegister.clawName,
+                  authToken: fresh.token,
+                  autoAccept: true,
+                });
+                refreshed.on("registered", (clawId: string) => {
+                  console.log(`[clawnexus] [Relay] Reconnected (token refresh) as ${clawId}`);
+                  // Old connector is now replaced on server side — disconnect it locally
+                  if (oldConnector && oldConnector !== refreshed) {
+                    oldConnector.disconnect();
+                  }
+                  // Re-join rooms with previous peers
+                  for (const peerId of previousPeers) {
+                    console.log(
+                      `[clawnexus] [Relay] Re-joining peer ${peerId} after token refresh`,
+                    );
+                    refreshed.join(peerId);
+                  }
+                });
+                refreshed.on("relay_error", (code: string, message: string) => {
+                  console.log(`[clawnexus] [Relay] Error: ${code} — ${message}`);
+                });
+                refreshed.connect();
+                setConnector(refreshed);
+              } catch (err) {
+                console.log(`[clawnexus] [Relay] Token refresh failed (non-fatal): ${err}`);
               }
-
-              // Connect new first, then disconnect old (relay server handles replacement)
-              const refreshed = new RelayConnector({
-                relayUrl: process.env.CLAWNEXUS_RELAY_URL ?? `wss://${fresh.relay_hint}/relay`,
-                clawId: autoRegister.clawName,
-                authToken: fresh.token,
-                autoAccept: true,
-              });
-              refreshed.on("registered", (clawId: string) => {
-                console.log(`[clawnexus] [Relay] Reconnected (token refresh) as ${clawId}`);
-                // Old connector is now replaced on server side — disconnect it locally
-                if (oldConnector && oldConnector !== refreshed) {
-                  oldConnector.disconnect();
-                }
-                // Re-join rooms with previous peers
-                for (const peerId of previousPeers) {
-                  console.log(`[clawnexus] [Relay] Re-joining peer ${peerId} after token refresh`);
-                  refreshed.join(peerId);
-                }
-              });
-              refreshed.on("relay_error", (code: string, message: string) => {
-                console.log(`[clawnexus] [Relay] Error: ${code} — ${message}`);
-              });
-              refreshed.connect();
-              setConnector(refreshed);
-            } catch (err) {
-              console.log(`[clawnexus] [Relay] Token refresh failed (non-fatal): ${err}`);
-            }
-          }, 55 * 60 * 1000);
+            },
+            55 * 60 * 1000,
+          );
         } catch (err) {
           console.log(`[clawnexus] [Relay] Failed to initialize (non-fatal): ${err}`);
         }
@@ -910,10 +907,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     if (!unreachable.some((u) => `${u.address}:${u.port}` === key)) {
       unreachable.push(info);
     }
-    app.log.warn(
-      { address: key, reason: info.reason },
-      "mDNS instance heard but HTTP unreachable",
-    );
+    app.log.warn({ address: key, reason: info.reason }, "mDNS instance heard but HTTP unreachable");
   });
 
   // Start mDNS and health checker

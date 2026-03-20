@@ -7,7 +7,8 @@ import type { ClawInstance } from "../api.js";
 const html = htm.bind(h);
 
 function StatusDot({ status }: { status: string }) {
-  const cls = status === "online" ? "dot-online" : status === "offline" ? "dot-offline" : "dot-unknown";
+  const cls =
+    status === "online" ? "dot-online" : status === "offline" ? "dot-offline" : "dot-unknown";
   return html`<span class="dot ${cls}"></span>`;
 }
 
@@ -35,9 +36,14 @@ function AliasCell({
   if (!editing) {
     return html`
       <span>
-        ${instance.alias ?? html`<span style="color: var(--text-dim)">—</span>`}
-        ${" "}
-        <button style="padding: 1px 6px; font-size: 11px;" onClick=${() => { setValue(instance.alias ?? ""); setEditing(true); }}>
+        ${instance.alias ?? html`<span style="color: var(--text-dim)">—</span>`} ${" "}
+        <button
+          style="padding: 1px 6px; font-size: 11px;"
+          onClick=${() => {
+            setValue(instance.alias ?? "");
+            setEditing(true);
+          }}
+        >
           ${instance.alias ? "edit" : "set"}
         </button>
       </span>
@@ -53,9 +59,16 @@ function AliasCell({
 
   return html`
     <span class="inline-edit">
-      <input ref=${inputRef} type="text" value=${value} maxlength="32"
+      <input
+        ref=${inputRef}
+        type="text"
+        value=${value}
+        maxlength="32"
         onInput=${(e: Event) => setValue((e.target as HTMLInputElement).value)}
-        onKeyDown=${(e: KeyboardEvent) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
+        onKeyDown=${(e: KeyboardEvent) => {
+          if (e.key === "Enter") save();
+          if (e.key === "Escape") setEditing(false);
+        }}
       />
       <button onClick=${save}>ok</button>
       <button onClick=${() => setEditing(false)}>x</button>
@@ -63,7 +76,11 @@ function AliasCell({
   `;
 }
 
-export function InstancesPage({ showToast }: { showToast: (msg: string, type: "ok" | "err") => void }) {
+export function InstancesPage({
+  showToast,
+}: {
+  showToast: (msg: string, type: "ok" | "err") => void;
+}) {
   const [instances, setInstances] = useState<ClawInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
@@ -137,39 +154,50 @@ export function InstancesPage({ showToast }: { showToast: (msg: string, type: "o
 
     <div class="card">
       ${instances.length === 0
-        ? html`<p style="color: var(--text-dim); padding: 12px 0;">No instances discovered yet. Try scanning your network.</p>`
+        ? html`<p style="color: var(--text-dim); padding: 12px 0;">
+            No instances discovered yet. Try scanning your network.
+          </p>`
         : html`
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Alias</th>
-                <th>Address</th>
-                <th>Status</th>
-                <th>Source</th>
-                <th>Last Seen</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${instances.map((inst) => html`
-                <tr key=${inst.auto_name}>
-                  <td>
-                    <strong>${inst.auto_name}</strong>
-                    ${inst.claw_name ? html` <span style="color: var(--text-dim); font-size: 11px;">(${inst.claw_name})</span>` : ""}
-                  </td>
-                  <td><${AliasCell} instance=${inst} onSave=${handleAlias} /></td>
-                  <td style="font-family: var(--mono); font-size: 12px;">${inst.address}:${inst.gateway_port}</td>
-                  <td><${StatusDot} status=${inst.status} />${inst.status}</td>
-                  <td><${SourceBadge} source=${inst.discovery_source} isSelf=${inst.is_self} /></td>
-                  <td style="color: var(--text-dim); font-size: 12px;">
-                    ${inst.last_seen ? new Date(inst.last_seen).toLocaleString() : "—"}
-                  </td>
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Alias</th>
+                  <th>Address</th>
+                  <th>Status</th>
+                  <th>Source</th>
+                  <th>Last Seen</th>
                 </tr>
-              `)}
-            </tbody>
-          </table>
-        `
-      }
+              </thead>
+              <tbody>
+                ${instances.map(
+                  (inst) => html`
+                    <tr key=${inst.auto_name}>
+                      <td>
+                        <strong>${inst.auto_name}</strong>
+                        ${inst.claw_name
+                          ? html` <span style="color: var(--text-dim); font-size: 11px;"
+                              >(${inst.claw_name})</span
+                            >`
+                          : ""}
+                      </td>
+                      <td><${AliasCell} instance=${inst} onSave=${handleAlias} /></td>
+                      <td style="font-family: var(--mono); font-size: 12px;">
+                        ${inst.address}:${inst.gateway_port}
+                      </td>
+                      <td><${StatusDot} status=${inst.status} />${inst.status}</td>
+                      <td>
+                        <${SourceBadge} source=${inst.discovery_source} isSelf=${inst.is_self} />
+                      </td>
+                      <td style="color: var(--text-dim); font-size: 12px;">
+                        ${inst.last_seen ? new Date(inst.last_seen).toLocaleString() : "—"}
+                      </td>
+                    </tr>
+                  `,
+                )}
+              </tbody>
+            </table>
+          `}
     </div>
   `;
 }

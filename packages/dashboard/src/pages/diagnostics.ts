@@ -6,7 +6,15 @@ import type { DiagnosticsResponse } from "../api.js";
 
 const html = htm.bind(h);
 
-function DiagItem({ label, value, status }: { label: string; value: string; status?: "ok" | "warn" | "err" }) {
+function DiagItem({
+  label,
+  value,
+  status,
+}: {
+  label: string;
+  value: string;
+  status?: "ok" | "warn" | "err";
+}) {
   const cls = status ? `diag-${status}` : "";
   return html`
     <div class="diag-item">
@@ -35,7 +43,9 @@ export function DiagnosticsPage() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   if (loading) return html`<div class="loading">Loading diagnostics...</div>`;
   if (error) return html`<div style="color: var(--red)">Error: ${error}</div>`;
@@ -49,15 +59,25 @@ export function DiagnosticsPage() {
 
     <div class="card">
       <div class="card-title">Identity</div>
-      <${DiagItem} label="Public Key" value=${identity?.pubkey ?? "Not initialized"} status=${identity?.pubkey ? "ok" : "warn"} />
-      <${DiagItem} label="Claw Name" value=${identity?.claw_name ?? "Not registered"} status=${identity?.claw_name ? "ok" : "warn"} />
+      <${DiagItem}
+        label="Public Key"
+        value=${identity?.pubkey ?? "Not initialized"}
+        status=${identity?.pubkey ? "ok" : "warn"}
+      />
+      <${DiagItem}
+        label="Claw Name"
+        value=${identity?.claw_name ?? "Not registered"}
+        status=${identity?.claw_name ? "ok" : "warn"}
+      />
     </div>
 
     <div class="card">
       <div class="card-title">Local Instance</div>
       <${DiagItem}
         label="OpenClaw (127.0.0.1:18789)"
-        value=${diag.local_instance.agent_id ? `Detected (${diag.local_instance.agent_id})` : "Not detected"}
+        value=${diag.local_instance.agent_id
+          ? `Detected (${diag.local_instance.agent_id})`
+          : "Not detected"}
         status=${diag.local_instance.agent_id ? "ok" : "warn"}
       />
     </div>
@@ -67,12 +87,14 @@ export function DiagnosticsPage() {
       <${DiagItem} label="mDNS" value=${diag.lan_discovery.mdns} status="ok" />
       <${DiagItem}
         label="Unreachable"
-        value=${diag.lan_discovery.unreachable_count === 0 ? "None" : `${diag.lan_discovery.unreachable_count} instance(s)`}
+        value=${diag.lan_discovery.unreachable_count === 0
+          ? "None"
+          : `${diag.lan_discovery.unreachable_count} instance(s)`}
         status=${diag.lan_discovery.unreachable_count === 0 ? "ok" : "warn"}
       />
-      ${diag.lan_discovery.unreachable.map((u) => html`
-        <${DiagItem} label=${`  ${u.address}`} value=${u.reason} status="err" />
-      `)}
+      ${diag.lan_discovery.unreachable.map(
+        (u) => html` <${DiagItem} label=${`  ${u.address}`} value=${u.reason} status="err" /> `,
+      )}
     </div>
 
     <div class="card">
@@ -82,7 +104,9 @@ export function DiagnosticsPage() {
         value=${diag.registry.status}
         status=${diag.registry.status === "registered" ? "ok" : "warn"}
       />
-      ${diag.registry.claw_name ? html`<${DiagItem} label="Claw Name" value=${diag.registry.claw_name} />` : ""}
+      ${diag.registry.claw_name
+        ? html`<${DiagItem} label="Claw Name" value=${diag.registry.claw_name} />`
+        : ""}
     </div>
 
     <div class="card">

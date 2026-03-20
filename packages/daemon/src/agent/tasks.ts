@@ -29,23 +29,25 @@ const TASK_TIMEOUT_S = 600; // 10 minutes default
 
 // Valid state transitions
 const TRANSITIONS: Record<TaskState, TaskState[]> = {
-  pending:   ["accepted", "rejected", "cancelled", "timeout"],
-  accepted:  ["executing", "completed", "failed", "cancelled", "timeout"],
+  pending: ["accepted", "rejected", "cancelled", "timeout"],
+  accepted: ["executing", "completed", "failed", "cancelled", "timeout"],
   executing: ["completed", "failed", "cancelled", "timeout"],
   completed: [],
-  failed:    [],
-  rejected:  [],
+  failed: [],
+  rejected: [],
   cancelled: [],
-  timeout:   [],
+  timeout: [],
 };
 
 const TERMINAL_STATES: ReadonlySet<TaskState> = new Set([
-  "completed", "failed", "rejected", "cancelled", "timeout",
+  "completed",
+  "failed",
+  "rejected",
+  "cancelled",
+  "timeout",
 ]);
 
-const ACTIVE_STATES: ReadonlySet<TaskState> = new Set([
-  "pending", "accepted", "executing",
-]);
+const ACTIVE_STATES: ReadonlySet<TaskState> = new Set(["pending", "accepted", "executing"]);
 
 export class TaskManager extends EventEmitter {
   private tasks = new Map<string, TaskRecord>();
@@ -144,8 +146,14 @@ export class TaskManager extends EventEmitter {
     const stats: TaskStats = {
       total: this.tasks.size,
       by_state: {
-        pending: 0, accepted: 0, executing: 0, completed: 0,
-        failed: 0, rejected: 0, cancelled: 0, timeout: 0,
+        pending: 0,
+        accepted: 0,
+        executing: 0,
+        completed: 0,
+        failed: 0,
+        rejected: 0,
+        cancelled: 0,
+        timeout: 0,
       },
       by_direction: { outbound: 0, inbound: 0 },
       active: 0,

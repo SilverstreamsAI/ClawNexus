@@ -41,9 +41,7 @@ export class HealthChecker extends EventEmitter {
 
   async checkAll(): Promise<void> {
     const instances = this.store.getAll();
-    await Promise.allSettled(
-      instances.map((inst) => this.checkOne(inst)),
-    );
+    await Promise.allSettled(instances.map((inst) => this.checkOne(inst)));
   }
 
   private async checkOne(inst: import("../types.js").ClawInstance): Promise<void> {

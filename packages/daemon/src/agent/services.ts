@@ -73,7 +73,11 @@ export class SkillsRegistry extends EventEmitter {
   }
 
   /** Get registry status */
-  getStatus(): { skill_count: number; last_refreshed: string | null; source: "gateway" | "default" } {
+  getStatus(): {
+    skill_count: number;
+    last_refreshed: string | null;
+    source: "gateway" | "default";
+  } {
     return {
       skill_count: this.skills.length > 0 ? this.skills.length : 1,
       last_refreshed: this.lastRefreshed,
@@ -107,7 +111,7 @@ export class SkillsRegistry extends EventEmitter {
     });
 
     try {
-      const result = await conn.request("tools.catalog", {}) as Record<string, unknown>;
+      const result = (await conn.request("tools.catalog", {})) as Record<string, unknown>;
 
       // v3 catalog returns { groups: [{ tools: [...] }] }
       const groups = result?.groups as Array<Record<string, unknown>> | undefined;
@@ -148,9 +152,7 @@ function toolToSkill(tool: Record<string, unknown>): AgentSkill {
 
 /** Convert snake_case/kebab-case tool name to human-readable */
 function formatSkillName(name: string): string {
-  return name
-    .replace(/[_-]/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return name.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /** Infer tags from tool name */
@@ -158,11 +160,15 @@ function inferTags(name: string): string[] {
   const lower = name.toLowerCase();
   const tags: string[] = [];
 
-  if (lower.includes("web") || lower.includes("search") || lower.includes("browse")) tags.push("web");
-  if (lower.includes("file") || lower.includes("read") || lower.includes("write")) tags.push("filesystem");
+  if (lower.includes("web") || lower.includes("search") || lower.includes("browse"))
+    tags.push("web");
+  if (lower.includes("file") || lower.includes("read") || lower.includes("write"))
+    tags.push("filesystem");
   if (lower.includes("code") || lower.includes("exec") || lower.includes("run")) tags.push("code");
-  if (lower.includes("image") || lower.includes("draw") || lower.includes("vision")) tags.push("media");
-  if (lower.includes("api") || lower.includes("http") || lower.includes("fetch")) tags.push("network");
+  if (lower.includes("image") || lower.includes("draw") || lower.includes("vision"))
+    tags.push("media");
+  if (lower.includes("api") || lower.includes("http") || lower.includes("fetch"))
+    tags.push("network");
 
   if (tags.length === 0) tags.push("general");
   return tags;
