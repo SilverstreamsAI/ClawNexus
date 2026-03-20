@@ -36,6 +36,8 @@ import {
   JSON_RPC_METHOD_NOT_FOUND,
 } from "../a2a/types.js";
 import { SkillsRegistry } from "../agent/services.js";
+import { PricingCollector } from "../pricing/collector.js";
+import { registerPricingRoutes } from "./pricing.js";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 
@@ -570,6 +572,7 @@ export interface DaemonHandle {
   getRouter: () => AgentRouter | null;
   skillsRegistry: SkillsRegistry;
   cardFetcher: CardFetcher;
+  pricingCollector: PricingCollector;
   registryClient: RegistryClient | null;
   autoRegister: AutoRegister | null;
   remoteDiscovery: RemoteDiscovery | null;
@@ -627,6 +630,9 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
 
   // 6d. Create CardFetcher (fetches remote Agent Cards from discovered instances)
   const cardFetcher = new CardFetcher(store);
+
+  // 6e. Create PricingCollector (LLM pricing from OpenRouter)
+  const pricingCollector = new PricingCollector();
 
   // 7. Detect WireGuard interfaces
   const wgInfo: WireGuardInfo = await detectWireGuard();
@@ -740,6 +746,9 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
   await a2aTaskStore.init();
   const a2aHandler = new A2AHandler({ store: a2aTaskStore });
   registerA2aRoutes(app, store, daemonPkg.version, skillsRegistry, a2aHandler);
+
+  // Pricing routes
+  registerPricingRoutes(app, pricingCollector);
 
   // 9. Initialize Registry integration (non-fatal — LAN must work without it)
   let identityKeys: IdentityKeys | null = null;
@@ -910,6 +919,11 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     app.log.warn({ address: key, reason: info.reason }, "mDNS instance heard but HTTP unreachable");
   });
 
+  // Start pricing collector (non-fatal)
+  pricingCollector.start().catch((err) => {
+    console.log(`[clawnexus] [Pricing] Failed to start (non-fatal): ${err}`);
+  });
+
   // Start mDNS and health checker
   try {
     mdns.start();
@@ -929,6 +943,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
   // Graceful shutdown hook
   app.addHook("onClose", async () => {
     if (tokenRefreshTimer) clearInterval(tokenRefreshTimer);
+    pricingCollector.stop();
     cardFetcher.stop();
     skillsRegistry.stop();
     await taskExecutor.close();
@@ -988,6 +1003,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     getRouter: () => agentRouter,
     skillsRegistry,
     cardFetcher,
+    pricingCollector,
     registryClient,
     autoRegister,
     remoteDiscovery,
