@@ -165,4 +165,4 @@ cd packages/daemon && pnpm dev
 
 ## License
 
-MIT
+MIT — [silverstream.tech](https://silverstream.tech)
