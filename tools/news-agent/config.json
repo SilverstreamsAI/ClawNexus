@@ -1,0 +1,75 @@
+{
+  "output_dir": "~/.openclaw/workspace/news-output",
+  "products": [
+    {
+      "name": "NexusFix",
+      "product_key": "nexusfix",
+      "id_prefix": "nfx",
+      "json_file": "nexusfix-news.json",
+      "keywords": [
+        "C++ standard latest",
+        "C++ compiler release",
+        "C++ performance optimization",
+        "ISO C++ proposal",
+        "FIX protocol update",
+        "SIMD optimization",
+        "low-latency C++"
+      ],
+      "tags_pool": ["C++", "performance", "compiler", "standards", "FIX", "SIMD", "low-latency", "memory", "concurrency"],
+      "placeholder_image": "/news-data/images/placeholder-cpp.svg",
+      "rss_sources": [
+        { "name": "ISO C++ Blog", "url": "https://isocpp.org/blog/rss" },
+        { "name": "C++ Reddit", "url": "https://www.reddit.com/r/cpp/.rss" },
+        { "name": "Hacker News", "url": "https://hnrss.org/newest?q=C%2B%2B" }
+      ]
+    },
+    {
+      "name": "ClawNexus",
+      "product_key": "clawnexus",
+      "id_prefix": "cnx",
+      "json_file": "clawnexus-news.json",
+      "keywords": [
+        "OpenClaw release",
+        "AI agent framework",
+        "MCP protocol update",
+        "tool use AI agent",
+        "AI agent release 2026",
+        "edge AI agent"
+      ],
+      "tags_pool": ["OpenClaw", "agents", "MCP", "tool-use", "frameworks", "edge", "LLM", "release"],
+      "placeholder_image": "/news-data/images/placeholder-ai.svg",
+      "rss_sources": [
+        { "name": "OpenClaw Blog", "url": "https://openclaw.dev/blog/rss" },
+        { "name": "AI Agent Reddit", "url": "https://www.reddit.com/r/AI_Agents/.rss" },
+        { "name": "HN AI Agents", "url": "https://hnrss.org/newest?q=AI+agent" }
+      ]
+    },
+    {
+      "name": "QuantNexus",
+      "product_key": "quantnexus",
+      "id_prefix": "qnx",
+      "json_file": "quantnexus-news.json",
+      "keywords": [
+        "algorithmic trading news",
+        "quantitative finance update",
+        "backtesting framework",
+        "market microstructure",
+        "fintech 2026",
+        "systematic trading"
+      ],
+      "tags_pool": ["trading", "quant", "backtesting", "fintech", "markets", "algorithms", "risk", "HFT"],
+      "placeholder_image": "/news-data/images/placeholder-quant.svg",
+      "rss_sources": [
+        { "name": "QuantStart", "url": "https://www.quantstart.com/feed/" },
+        { "name": "Algo Trading Reddit", "url": "https://www.reddit.com/r/algotrading/.rss" },
+        { "name": "HN Quant", "url": "https://hnrss.org/newest?q=algorithmic+trading" }
+      ]
+    }
+  ],
+  "scraping": {
+    "articles_per_product": 6,
+    "max_article_age_days": 7,
+    "search_language": "en",
+    "rewrite_word_range": [200, 400]
+  }
+}
