@@ -7,14 +7,15 @@ import { InstancesPage } from "./pages/instances.js";
 import { DiagnosticsPage } from "./pages/diagnostics.js";
 import { TasksPage } from "./pages/tasks.js";
 import { PolicyPage } from "./pages/policy.js";
+import { PricingPage } from "./pages/pricing.js";
 
 const html = htm.bind(h);
 
-type Page = "instances" | "diagnostics" | "tasks" | "policy";
+type Page = "instances" | "diagnostics" | "tasks" | "policy" | "pricing";
 
 function getPage(): Page {
   const hash = location.hash.replace("#", "") || "instances";
-  if (["instances", "diagnostics", "tasks", "policy"].includes(hash)) return hash as Page;
+  if (["instances", "diagnostics", "tasks", "policy", "pricing"].includes(hash)) return hash as Page;
   return "instances";
 }
 
@@ -29,6 +30,7 @@ function Nav({ page, version }: { page: Page; version: string }) {
       <a href="#diagnostics" class=${page === "diagnostics" ? "active" : ""}>Diagnostics</a>
       <a href="#tasks" class=${page === "tasks" ? "active" : ""}>Tasks</a>
       <a href="#policy" class=${page === "policy" ? "active" : ""}>Policy</a>
+      <a href="#pricing" class=${page === "pricing" ? "active" : ""}>Pricing</a>
     </nav>
   `;
 }
@@ -76,6 +78,7 @@ function App() {
     diagnostics: html`<${DiagnosticsPage} />`,
     tasks: html`<${TasksPage} />`,
     policy: html`<${PolicyPage} showToast=${showToast} />`,
+    pricing: html`<${PricingPage} />`,
   }[page];
 
   return html`

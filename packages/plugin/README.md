@@ -1,6 +1,6 @@
 # clawnexus-plugin
 
-OpenClaw plugin adapter for [ClawNexus](https://github.com/SilverstreamsAI/ClawNexus) — runs the ClawNexus daemon as an embedded OpenClaw plugin service.
+OpenClaw plugin adapter for [ClawNexus](https://github.com/StratCraftsAI/ClawNexus) — runs the ClawNexus daemon as an embedded OpenClaw plugin service.
 
 ## Install
 
@@ -26,5 +26,5 @@ Configuration is set through OpenClaw's plugin config system:
 
 ## Links
 
-- [ClawNexus Documentation](https://github.com/SilverstreamsAI/ClawNexus/tree/main/docs)
+- [ClawNexus Documentation](https://github.com/StratCraftsAI/ClawNexus/tree/main/docs)
 - [ClawNexus Daemon (clawnexus)](https://www.npmjs.com/package/clawnexus)

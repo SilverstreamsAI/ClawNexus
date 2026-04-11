@@ -24,6 +24,7 @@ export default defineConfig({
       "/registry": "http://localhost:17890",
       "/relay": "http://localhost:17890",
       "/resolve": "http://localhost:17890",
+      "/pricing": "http://localhost:17890",
     },
   },
 });

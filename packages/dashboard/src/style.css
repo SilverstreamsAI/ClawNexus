@@ -333,6 +333,51 @@ input[type="text"]:focus, textarea:focus {
   padding: 20px 0;
 }
 
+/* Pricing */
+.pricing-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.pricing-toolbar input[type="text"] {
+  width: 220px;
+}
+
+.pricing-toolbar select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  outline: none;
+}
+
+.pricing-toolbar select:focus {
+  border-color: var(--accent);
+}
+
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+th.sortable:hover {
+  color: var(--text);
+}
+
+.price-cell {
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+th.price-col {
+  text-align: right;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   #app { flex-direction: column; }

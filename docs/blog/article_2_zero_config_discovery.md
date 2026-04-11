@@ -115,4 +115,4 @@ The priority order means most users never think about discovery at all. Start th
 
 ---
 
-*Built by [SilverstreamsAI](https://github.com/SilverstreamsAI). For questions or collaboration: contact@silverstream.tech*
+*Built by [StratCraftsAI](https://github.com/StratCraftsAI). For questions or collaboration: contact@stratcraft.ai*

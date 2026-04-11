@@ -4,7 +4,7 @@ set -euo pipefail
 # ─────────────────────────────────────────────
 # News Agent Runner
 # Runs the OpenClaw news agent to generate
-# news JSON files for silverstream.tech
+# news JSON files for stratcraft.ai
 # ─────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

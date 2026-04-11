@@ -111,10 +111,10 @@ The A2A bridge shipping today is the foundation. It makes every OpenClaw instanc
 
 ## Links
 
-- **GitHub**: [github.com/SilverstreamsAI/ClawNexus](https://github.com/SilverstreamsAI/ClawNexus)
+- **GitHub**: [github.com/StratCraftsAI/ClawNexus](https://github.com/StratCraftsAI/ClawNexus)
 - **npm**: [npmjs.com/package/clawnexus](https://www.npmjs.com/package/clawnexus)
 - **A2A Spec**: [google.github.io/A2A](https://google.github.io/A2A)
 
 ---
 
-*Built by [SilverstreamsAI](https://github.com/SilverstreamsAI). For questions or collaboration: contact@silverstream.tech*
+*Built by [StratCraftsAI](https://github.com/StratCraftsAI). For questions or collaboration: contact@stratcraft.ai*

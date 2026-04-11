@@ -166,9 +166,9 @@ But the core use case works today: install it, start it, and your AI agents have
 
 ## Links
 
-- **GitHub**: [github.com/SilverstreamsAI/ClawNexus](https://github.com/SilverstreamsAI/ClawNexus)
+- **GitHub**: [github.com/StratCraftsAI/ClawNexus](https://github.com/StratCraftsAI/ClawNexus)
 - **npm**: [npmjs.com/package/clawnexus](https://www.npmjs.com/package/clawnexus)
 
 ---
 
-*Built by [SilverstreamsAI](https://github.com/SilverstreamsAI). For questions or collaboration: contact@silverstream.tech*
+*Built by [StratCraftsAI](https://github.com/StratCraftsAI). For questions or collaboration: contact@stratcraft.ai*

@@ -1,11 +1,11 @@
 # News Agent — OpenClaw-powered News Curation
 
-Automated news curation pipeline for [silverstream.tech](https://silverstream.tech) product pages. Uses OpenClaw AI agent to search, fetch, rewrite, and output news articles as static JSON.
+Automated news curation pipeline for [stratcraft.ai](https://stratcraft.ai) product pages. Uses OpenClaw AI agent to search, fetch, rewrite, and output news articles as static JSON.
 
 Powers three news pages:
-- [NexusFix News](https://silverstream.tech/nexusfix/news) — C++ & FIX protocol
-- [ClawNexus News](https://silverstream.tech/clawnexus/news) — OpenClaw & AI agents
-- [QuantNexus News](https://silverstream.tech/quantnexus/news) — Algorithmic trading
+- [NexusFix News](https://stratcraft.ai/nexusfix/news) — C++ & FIX protocol
+- [ClawNexus News](https://stratcraft.ai/clawnexus/news) — OpenClaw & AI agents
+- [QuantNexus News](https://stratcraft.ai/quantnexus/news) — Algorithmic trading
 
 ## Prerequisites
 
@@ -69,7 +69,7 @@ openclaw configure --section web
 
 ```bash
 # 1. Clone the repo (if not already)
-git clone https://github.com/SilverstreamsAI/ClawNexus.git
+git clone https://github.com/StratCraftsAI/ClawNexus.git
 cd ClawNexus/tools/news-agent
 
 # 2. Run the agent

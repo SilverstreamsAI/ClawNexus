@@ -1,6 +1,6 @@
 # @clawnexus/mcp-server
 
-MCP (Model Context Protocol) server for [ClawNexus](https://github.com/SilverstreamsAI/ClawNexus). Lets AI agents like Claude and GPT manage OpenClaw instances through the ClawNexus daemon.
+MCP (Model Context Protocol) server for [ClawNexus](https://github.com/StratCraftsAI/ClawNexus). Lets AI agents like Claude and GPT manage OpenClaw instances through the ClawNexus daemon.
 
 ## Quick Start
 

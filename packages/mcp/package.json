@@ -3,14 +3,14 @@
   "version": "0.4.0",
   "description": "ClawNexus MCP Server — lets AI agents manage OpenClaw instances via Model Context Protocol",
   "license": "MIT",
-  "author": "alan-silverstreams <alan@silverstream.tech>",
-  "homepage": "https://github.com/SilverstreamsAI/ClawNexus",
+  "author": "alan-silverstreams <alan@stratcraft.ai>",
+  "homepage": "https://github.com/StratCraftsAI/ClawNexus",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SilverstreamsAI/ClawNexus.git",
+    "url": "git+https://github.com/StratCraftsAI/ClawNexus.git",
     "directory": "packages/mcp"
   },
-  "bugs": "https://github.com/SilverstreamsAI/ClawNexus/issues",
+  "bugs": "https://github.com/StratCraftsAI/ClawNexus/issues",
   "keywords": [
     "openclaw",
     "ai",

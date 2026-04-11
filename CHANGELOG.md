@@ -86,7 +86,7 @@ All notable changes to this project will be documented in this file.
 - ClawHub skill submission
 
 ### Changed
-- Updated GitHub URLs to SilverstreamsAI org
+- Updated GitHub URLs to StratCraftsAI org
 - Updated API, architecture, and README docs for v0.2 registry and v0.4 agent features
 
 ## [0.2.2] - 2026-02-28

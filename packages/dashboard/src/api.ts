@@ -102,6 +102,37 @@ export interface PolicyConfig {
   [key: string]: unknown;
 }
 
+export interface PricingModel {
+  id: string;
+  name: string;
+  provider: string;
+  pricing: {
+    prompt: number;
+    completion: number;
+    image: number;
+    request: number;
+    unit: string;
+  };
+  context_length: number;
+  max_completion_tokens: number | null;
+  input_modalities: string[];
+  output_modalities: string[];
+  created: number;
+}
+
+export interface PricingResponse {
+  schema_version: string;
+  fetched_at: string;
+  source: string;
+  model_count: number;
+  models: PricingModel[];
+}
+
+export interface ProvidersResponse {
+  count: number;
+  providers: string[];
+}
+
 export const api = {
   getInstances: () => request<InstancesResponse>("GET", "/instances"),
   setAlias: (id: string, alias: string) =>
@@ -119,4 +150,7 @@ export const api = {
   resetPolicy: () =>
     request<{ status: string; policy: PolicyConfig }>("POST", "/agent/policy/reset"),
   getWhoami: () => request<{ pubkey?: string; claw_name?: string }>("GET", "/whoami"),
+  getPricing: (provider?: string) =>
+    request<PricingResponse>("GET", provider ? `/pricing?provider=${encodeURIComponent(provider)}` : "/pricing"),
+  getPricingProviders: () => request<ProvidersResponse>("GET", "/pricing/providers"),
 };

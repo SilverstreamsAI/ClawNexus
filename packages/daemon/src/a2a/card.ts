@@ -67,7 +67,7 @@ export function buildAgentCard(
     defaultOutputModes: instance.remote_card?.output_modes ?? ["text/plain"],
     provider: {
       name: "ClawNexus",
-      url: "https://github.com/SilverstreamsAI/ClawNexus",
+      url: "https://github.com/StratCraftsAI/ClawNexus",
     },
   };
 }

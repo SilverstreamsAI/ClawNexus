@@ -3,9 +3,11 @@
 [![npm](https://img.shields.io/npm/v/clawnexus)](https://www.npmjs.com/package/clawnexus)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen)](https://nodejs.org/)
-[![CI](https://github.com/SilverstreamsAI/ClawNexus/actions/workflows/ci.yml/badge.svg)](https://github.com/SilverstreamsAI/ClawNexus/actions/workflows/ci.yml)
+[![CI](https://github.com/StratCraftsAI/ClawNexus/actions/workflows/ci.yml/badge.svg)](https://github.com/StratCraftsAI/ClawNexus/actions/workflows/ci.yml)
 
 **Identity registry for AI agents** — discover, name, and connect OpenClaw instances across networks.
+
+[Website](https://stratcraft.ai/clawnexus) · [npm](https://www.npmjs.com/package/clawnexus) · [Documentation](./docs/quickstart.md)
 
 > **The original ClawNexus** — [on npm since March 1, 2026](https://www.npmjs.com/package/clawnexus)
 
@@ -137,7 +139,7 @@ ClawNexus can generate A2A Agent Cards from registry data, making your OpenClaw 
 
 ```bash
 # Clone and install
-git clone https://github.com/SilverstreamsAI/ClawNexus.git
+git clone https://github.com/StratCraftsAI/ClawNexus.git
 cd ClawNexus
 pnpm install
 
@@ -165,4 +167,4 @@ cd packages/daemon && pnpm dev
 
 ## License
 
-MIT — [silverstream.tech](https://silverstream.tech)
+MIT — [stratcraft.ai](https://stratcraft.ai)

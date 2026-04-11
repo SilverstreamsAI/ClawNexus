@@ -579,6 +579,7 @@ export interface DaemonHandle {
   identityKeys: IdentityKeys | null;
 }
 
+/* istanbul ignore next -- integration bootstrap, tested via e2e */
 export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHandle> {
   const port = options.port ?? PORT;
   const host = options.host ?? HOST;

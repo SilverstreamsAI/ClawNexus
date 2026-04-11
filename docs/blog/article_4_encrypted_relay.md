@@ -137,4 +137,4 @@ The relay connection is established automatically when you target a `.claw` addr
 
 ---
 
-*Built by [SilverstreamsAI](https://github.com/SilverstreamsAI). For questions or collaboration: contact@silverstream.tech*
+*Built by [StratCraftsAI](https://github.com/StratCraftsAI). For questions or collaboration: contact@stratcraft.ai*

@@ -102,7 +102,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
   };
 }
 
-async function fetchApi(
+export async function fetchApi(
   api: string,
   method: string,
   urlPath: string,
@@ -128,12 +128,12 @@ async function fetchApi(
 
 // --- Table formatting ---
 
-function getChannel(inst: ClawInstance): string {
+export function getChannel(inst: ClawInstance): string {
   if (inst.is_self) return "local";
   return inst.connectivity?.preferred_channel ?? inst.discovery_source;
 }
 
-function printTable(instances: ClawInstance[]): void {
+export function printTable(instances: ClawInstance[]): void {
   if (instances.length === 0) {
     console.log("No instances found.");
     return;
@@ -195,7 +195,7 @@ function printTable(instances: ClawInstance[]): void {
 
 // --- PID file helpers ---
 
-function readPid(): number | null {
+export function readPid(): number | null {
   try {
     const pid = parseInt(fs.readFileSync(PID_FILE, "utf-8").trim(), 10);
     // Check if process exists
@@ -206,12 +206,12 @@ function readPid(): number | null {
   }
 }
 
-function writePid(pid: number): void {
+export function writePid(pid: number): void {
   fs.mkdirSync(path.dirname(PID_FILE), { recursive: true });
   fs.writeFileSync(PID_FILE, String(pid), "utf-8");
 }
 
-function removePid(): void {
+export function removePid(): void {
   try {
     fs.unlinkSync(PID_FILE);
   } catch {
@@ -221,7 +221,7 @@ function removePid(): void {
 
 // --- Commands ---
 
-async function cmdStart(args: ParsedArgs): Promise<void> {
+export async function cmdStart(args: ParsedArgs): Promise<void> {
   // Check if already running
   const existing = readPid();
   if (existing) {
@@ -282,7 +282,7 @@ async function cmdStart(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function cmdStop(): Promise<void> {
+export async function cmdStop(): Promise<void> {
   const pid = readPid();
   if (!pid) {
     console.log("ClawNexus daemon is not running.");
@@ -299,13 +299,13 @@ async function cmdStop(): Promise<void> {
   }
 }
 
-async function cmdRestart(args: ParsedArgs): Promise<void> {
+export async function cmdRestart(args: ParsedArgs): Promise<void> {
   await cmdStop();
   await new Promise((r) => setTimeout(r, 500));
   await cmdStart(args);
 }
 
-async function cmdStatus(args: ParsedArgs): Promise<void> {
+export async function cmdStatus(args: ParsedArgs): Promise<void> {
   const pid = readPid();
   const { ok, data } = await fetchApi(args.api, "GET", "/health", undefined, args.timeout);
 
@@ -341,7 +341,7 @@ async function cmdStatus(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function cmdList(args: ParsedArgs): Promise<void> {
+export async function cmdList(args: ParsedArgs): Promise<void> {
   const { ok, data } = await fetchApi(args.api, "GET", "/instances", undefined, args.timeout);
   if (!ok) {
     console.error(
@@ -365,7 +365,7 @@ async function cmdList(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function cmdScan(args: ParsedArgs): Promise<void> {
+export async function cmdScan(args: ParsedArgs): Promise<void> {
   const body: Record<string, unknown> = {};
   if (args.targets.length > 0) body.targets = args.targets;
   if (args.ports.length > 0) body.ports = args.ports;
@@ -403,7 +403,7 @@ async function cmdScan(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function cmdAlias(args: ParsedArgs): Promise<void> {
+export async function cmdAlias(args: ParsedArgs): Promise<void> {
   const [id, alias] = args.positional;
   if (!id || !alias) {
     console.error("Usage: clawnexus alias <id|address> <name>");
@@ -431,7 +431,7 @@ async function cmdAlias(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function cmdInfo(args: ParsedArgs): Promise<void> {
+export async function cmdInfo(args: ParsedArgs): Promise<void> {
   const [name] = args.positional;
   if (!name) {
     console.error("Usage: clawnexus info <name|address>");
@@ -501,7 +501,7 @@ async function cmdInfo(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function cmdForget(args: ParsedArgs): Promise<void> {
+export async function cmdForget(args: ParsedArgs): Promise<void> {
   const [name] = args.positional;
   if (!name) {
     console.error("Usage: clawnexus forget <name|address>");
@@ -529,7 +529,7 @@ async function cmdForget(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function cmdConnect(args: ParsedArgs): Promise<void> {
+export async function cmdConnect(args: ParsedArgs): Promise<void> {
   const [target] = args.positional;
   if (!target) {
     console.error("Usage: clawnexus connect <name|name.claw>");
@@ -620,7 +620,7 @@ async function cmdConnect(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function cmdOpen(args: ParsedArgs): Promise<void> {
+export async function cmdOpen(args: ParsedArgs): Promise<void> {
   const [name] = args.positional;
   if (!name) {
     console.error("Usage: clawnexus open <name>");
@@ -656,7 +656,7 @@ async function cmdOpen(args: ParsedArgs): Promise<void> {
   });
 }
 
-async function cmdRelay(args: ParsedArgs): Promise<void> {
+export async function cmdRelay(args: ParsedArgs): Promise<void> {
   const sub = args.positional[0];
   if (sub === "status") {
     const { ok, data } = await fetchApi(args.api, "GET", "/relay/status", undefined, args.timeout);
@@ -676,7 +676,7 @@ async function cmdRelay(args: ParsedArgs): Promise<void> {
 
 // --- Layer B Agent Commands ---
 
-async function cmdPolicy(args: ParsedArgs): Promise<void> {
+export async function cmdPolicy(args: ParsedArgs): Promise<void> {
   const sub = args.positional[0];
 
   switch (sub) {
@@ -765,7 +765,7 @@ async function cmdPolicy(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function cmdTasks(args: ParsedArgs): Promise<void> {
+export async function cmdTasks(args: ParsedArgs): Promise<void> {
   const sub = args.positional[0];
 
   if (sub === "info") {
@@ -916,7 +916,7 @@ async function cmdTasks(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function cmdPropose(args: ParsedArgs): Promise<void> {
+export async function cmdPropose(args: ParsedArgs): Promise<void> {
   const [clawId, taskType, ...descParts] = args.positional;
   if (!clawId || !taskType) {
     console.error(
@@ -976,7 +976,7 @@ async function cmdPropose(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function cmdQuery(args: ParsedArgs): Promise<void> {
+export async function cmdQuery(args: ParsedArgs): Promise<void> {
   const [clawId, queryType] = args.positional;
   if (!clawId || !queryType) {
     console.error("Usage: clawnexus query <claw_id> <capabilities|status|availability>");
@@ -1028,7 +1028,7 @@ async function cmdQuery(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function cmdInbox(args: ParsedArgs): Promise<void> {
+export async function cmdInbox(args: ParsedArgs): Promise<void> {
   const sub = args.positional[0];
 
   if (sub === "approve") {
@@ -1110,7 +1110,7 @@ async function cmdInbox(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function cmdRegister(args: ParsedArgs): Promise<void> {
+export async function cmdRegister(args: ParsedArgs): Promise<void> {
   console.log("Registering with public registry...");
   const { ok, data } = await fetchApi(
     args.api,
@@ -1136,7 +1136,7 @@ async function cmdRegister(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function cmdRegistryStatus(args: ParsedArgs): Promise<void> {
+export async function cmdRegistryStatus(args: ParsedArgs): Promise<void> {
   const { ok, data } = await fetchApi(args.api, "GET", "/registry/status", undefined, args.timeout);
   if (!ok) {
     console.error(
@@ -1156,7 +1156,7 @@ async function cmdRegistryStatus(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function cmdResolve(args: ParsedArgs): Promise<void> {
+export async function cmdResolve(args: ParsedArgs): Promise<void> {
   const [name] = args.positional;
   if (!name) {
     console.error("Usage: clawnexus resolve <name.id.claw>");
@@ -1191,7 +1191,7 @@ async function cmdResolve(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function cmdWhoami(args: ParsedArgs): Promise<void> {
+export async function cmdWhoami(args: ParsedArgs): Promise<void> {
   const { ok, data } = await fetchApi(args.api, "GET", "/whoami", undefined, args.timeout);
   if (!ok) {
     console.error("Failed to get identity:", (data as { error?: string }).error ?? "Unknown error");
@@ -1208,7 +1208,7 @@ async function cmdWhoami(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function cmdDiagnostics(args: ParsedArgs): Promise<void> {
+export async function cmdDiagnostics(args: ParsedArgs): Promise<void> {
   const { ok, data } = await fetchApi(args.api, "GET", "/diagnostics", undefined, args.timeout);
   if (!ok) {
     console.error(
@@ -1271,7 +1271,7 @@ async function cmdDiagnostics(args: ParsedArgs): Promise<void> {
   console.log(`  LAN: ${diag.summary.lan_instances}  Relay: ${diag.summary.relay_instances}`);
 }
 
-async function cmdInteractions(args: ParsedArgs): Promise<void> {
+export async function cmdInteractions(args: ParsedArgs): Promise<void> {
   const params = new URLSearchParams();
   params.set("all", "true");
   if (args.direction) params.set("direction", args.direction);
@@ -1321,7 +1321,7 @@ async function cmdInteractions(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function cmdOpenUi(args: ParsedArgs): Promise<void> {
+export async function cmdOpenUi(args: ParsedArgs): Promise<void> {
   const url = `${args.api}/ui/`;
 
   // Check if daemon is running
@@ -1343,7 +1343,7 @@ async function cmdOpenUi(args: ParsedArgs): Promise<void> {
   });
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
 
   switch (args.command) {
@@ -1482,7 +1482,14 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+/* istanbul ignore next -- CLI entry point guard */
+const isDirectRun =
+  typeof process !== "undefined" &&
+  process.argv[1] &&
+  (process.argv[1].endsWith("/cli/index.js") || process.argv[1].endsWith("\\cli\\index.js"));
+if (isDirectRun) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

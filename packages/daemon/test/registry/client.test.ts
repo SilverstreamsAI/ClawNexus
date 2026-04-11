@@ -207,7 +207,7 @@ describe("RegistryClient", () => {
         json: async () => ({
           token: "jwt-token-here",
           expires_in: 300,
-          relay_hint: "relay-us-west.silverstream.tech",
+          relay_hint: "relay-us-west.stratcraft.ai",
         }),
       });
 

@@ -13,7 +13,7 @@ Thank you for your interest in contributing to ClawNexus! This guide will help y
 ### Setup
 
 ```bash
-git clone https://github.com/SilverstreamsAI/ClawNexus.git
+git clone https://github.com/StratCraftsAI/ClawNexus.git
 cd ClawNexus
 pnpm install
 pnpm build
@@ -86,7 +86,7 @@ Types: `feat`, `fix`, `docs`, `test`, `chore`, `refactor`
 
 ## Reporting Issues
 
-- Use [GitHub Issues](https://github.com/SilverstreamsAI/ClawNexus/issues) to report bugs or request features
+- Use [GitHub Issues](https://github.com/StratCraftsAI/ClawNexus/issues) to report bugs or request features
 - Include steps to reproduce for bug reports
 - Specify your OS, Node.js version, and ClawNexus version
 

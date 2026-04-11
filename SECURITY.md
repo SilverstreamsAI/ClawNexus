@@ -11,7 +11,7 @@
 
 If you discover a security vulnerability in ClawNexus, please report it responsibly.
 
-**Email:** [alan@silverstream.tech](mailto:alan@silverstream.tech)
+**Email:** [alan@stratcraft.ai](mailto:alan@stratcraft.ai)
 
 Please include:
 
